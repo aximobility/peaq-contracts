@@ -16,7 +16,7 @@ You need:
 - **3-7 EOAs to act as ADMIN, ISSUER(s), ATTESTOR(s), APPROVER(s)** — for the first deploy these can all be the same EOA; production splits them across hardware wallets + a Safe multisig
 - **Agung gas:** ~0.1 AGNG covers all three deploys + first attestation
 
-Don't have AGNG? Faucet: `https://agung-faucet.peaq.network`. Wait 1-2 min for the drip.
+Don't have AGNG? Web faucet: `https://docs.peaq.xyz/build/getting-started/get-test-tokens`. 3 AGNG/day per wallet — enough for 5 deploy txs + smoke txs (~0.025 AGNG total).
 
 ---
 

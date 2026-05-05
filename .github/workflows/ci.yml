@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+  security-events: write
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FOUNDRY_PROFILE: ci
+
+jobs:
+  build-test:
+    name: Build + test + snapshot
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+      - name: Install dependencies
+        run: |
+          forge install --no-commit OpenZeppelin/openzeppelin-contracts || true
+          forge install --no-commit OpenZeppelin/openzeppelin-contracts-upgradeable || true
+          forge install --no-commit foundry-rs/forge-std || true
+      - name: forge fmt
+        run: forge fmt --check
+      - name: forge build
+        run: forge build --sizes
+      - name: forge test
+        run: forge test -vv --gas-report
+
+  fuzz:
+    name: Fuzz + invariant
+    runs-on: ubuntu-latest
+    needs: build-test
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+      - name: Install dependencies
+        run: |
+          forge install --no-commit OpenZeppelin/openzeppelin-contracts || true
+          forge install --no-commit OpenZeppelin/openzeppelin-contracts-upgradeable || true
+          forge install --no-commit foundry-rs/forge-std || true
+      - name: Fuzz tests
+        run: forge test --fuzz-runs 5000
+
+  slither:
+    name: Slither static analysis
+    runs-on: ubuntu-latest
+    needs: build-test
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+      - name: Install dependencies
+        run: |
+          forge install --no-commit OpenZeppelin/openzeppelin-contracts || true
+          forge install --no-commit OpenZeppelin/openzeppelin-contracts-upgradeable || true
+          forge install --no-commit foundry-rs/forge-std || true
+      - uses: crytic/slither-action@v0.4.0
+        with:
+          fail-on: high
+          slither-args: --filter-paths "lib/|test/|script/" --exclude-informational --exclude-low
+          sarif: slither.sarif
+        continue-on-error: true
+      - if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: slither.sarif
+        continue-on-error: true
+
+  secret-scan:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

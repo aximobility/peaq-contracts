@@ -415,24 +415,24 @@ $K$-of-$M$ approval gate. AXI staff propose a high-risk command (lock fleet, mas
 
 \begin{center}
 \resizebox{0.85\textwidth}{!}{
-\begin{tikzpicture}[node distance=3cm and 1.6cm]
+\begin{tikzpicture}[node distance=2cm and 1.4cm]
   \node[stateinitial] (proposed) {Proposed};
   \node[statenode, right=of proposed] (approved) {Approved};
   \node[stateterminal, right=of approved] (executed) {Executed};
-  \node[stateterminal, below=of approved] (cancelled) {Cancelled};
-  \node[stateterminal, below=of executed] (expired) {Expired};
+  \node[stateterminal, below=1.4cm of proposed] (cancelled) {Cancelled};
+  \node[stateterminal, below=1.4cm of approved] (expired) {Expired};
 
   \draw[seqarrow] (proposed) -- node[above, font=\scriptsize] {$K$ approvals} (approved);
   \draw[seqarrow] (approved) -- node[above, font=\scriptsize] {execute()} (executed);
-  \draw[seqarrow] (proposed) -- node[left, font=\scriptsize, pos=0.6] {cancel()} (cancelled);
-  \draw[seqarrow] (approved) -- node[right, font=\scriptsize, pos=0.4] {cancel()} (cancelled);
-  \draw[seqarrow] (proposed) to[bend right=10] node[below, font=\scriptsize, sloped] {markExpired()} (expired);
+  \draw[seqarrow] (proposed) -- node[right, font=\scriptsize] {cancel()} (cancelled);
   \draw[seqarrow] (approved) -- node[right, font=\scriptsize] {markExpired()} (expired);
+  \draw[seqarrow, dashed] (approved.south) -- node[above, font=\scriptsize, sloped] {cancel()} (cancelled.east);
+  \draw[seqarrow, dashed] (proposed.south) -- node[above, font=\scriptsize, sloped] {markExpired()} (expired.west);
 \end{tikzpicture}
 }
 
-\vspace{4pt}
-{\small\color{axigray} Bright green = active state \enspace$\cdot$\enspace Gray = terminal}
+\vspace{2pt}
+{\footnotesize\color{axigray} Bright green = initial $\cdot$ Gray = terminal $\cdot$ Dashed = also reachable}
 \end{center}
 
 \subsubsection{End-to-end flow}

@@ -12,6 +12,7 @@
 \usepackage{booktabs}
 \usepackage{tabularx}
 \usepackage{longtable}
+\usepackage{adjustbox}
 \usepackage{fancyhdr}
 \usepackage{lastpage}
 \usepackage{fontspec}
@@ -351,7 +352,7 @@ We attest a per-DID risk score on-chain. Append-only, signed by an authorised at
 \subsubsection{End-to-end flow}
 
 \begin{center}
-\resizebox{0.85\textwidth}{!}{
+\adjustbox{max width=0.8\textwidth, max totalheight=5cm, center}{
 \begin{tikzpicture}[node distance=2.2cm and 1.2cm]
   \node[seqactor] (atl) {ATL\\Behavior Agent};
   \node[seqactor, right=of atl] (axi) {AXI\\Backend};
@@ -414,7 +415,7 @@ $K$-of-$M$ approval gate. AXI staff propose a high-risk command (lock fleet, mas
 \subsubsection{State machine}
 
 \begin{center}
-\resizebox{0.85\textwidth}{!}{
+\adjustbox{max width=0.8\textwidth, max totalheight=5cm, center}{
 \begin{tikzpicture}[node distance=2cm and 1.4cm]
   \node[stateinitial] (proposed) {Proposed};
   \node[statenode, right=of proposed] (approved) {Approved};
@@ -438,7 +439,7 @@ $K$-of-$M$ approval gate. AXI staff propose a high-risk command (lock fleet, mas
 \subsubsection{End-to-end flow}
 
 \begin{center}
-\resizebox{0.85\textwidth}{!}{
+\adjustbox{max width=0.8\textwidth, max totalheight=5cm, center}{
 \begin{tikzpicture}[node distance=1.8cm and 0.9cm]
   \node[seqactor] (op) {AXI Op};
   \node[seqactor, right=of op] (vault) {Vault};
@@ -506,7 +507,7 @@ Each credential is hashed and registered. When the issuer (NTSA, insurance compa
 \subsubsection{End-to-end flow}
 
 \begin{center}
-\resizebox{0.85\textwidth}{!}{
+\adjustbox{max width=0.8\textwidth, max totalheight=5cm, center}{
 \begin{tikzpicture}[node distance=2.6cm and 1.4cm]
   \node[seqactor] (op) {AXI Op};
   \node[seqactor, right=of op] (axi) {AXI Backend};
@@ -561,7 +562,7 @@ NTSA's portal goes down regularly. Our chain does not. Plus: insurance firms out
 \subsection{The architecture}
 
 \begin{center}
-\resizebox{0.85\textwidth}{!}{
+\adjustbox{max width=0.8\textwidth, max totalheight=5cm, center}{
 \begin{tikzpicture}[node distance=1.2cm and 1.6cm]
   % AXI side
   \node[flowblock] (cloud) {ROAM ops\\dashboard};
@@ -694,7 +695,7 @@ Agung testnet & Pre-mainnet integration testing & continuous in CI \\
 \subsection{Visual timeline}
 
 \begin{center}
-\resizebox{0.85\textwidth}{!}{
+\adjustbox{max width=0.8\textwidth, max totalheight=5cm, center}{
 \begin{tikzpicture}[node distance=0.4cm]
   % Timeline base
   \draw[axiprimary, line width=2.5pt] (0,0) -- (15.5,0);

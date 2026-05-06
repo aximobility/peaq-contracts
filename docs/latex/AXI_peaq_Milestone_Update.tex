@@ -1,0 +1,464 @@
+% AXI MOBILITY x peaq - Milestone Update
+% Compile with: lualatex AXI_peaq_Milestone_Update.tex
+% Style: AXI technical reference (matches AXI_FMC130_Vehicle_Compatibility_Guide)
+\documentclass[a4paper,10pt]{article}
+\usepackage[margin=2cm, top=1.8cm, bottom=2cm]{geometry}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+\usepackage{fontspec}
+\usepackage{setspace}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{tcolorbox}
+\usepackage{fontawesome5}
+
+% Font
+\setmainfont{Calibri}[
+  BoldFont=Calibri Bold,
+  ItalicFont=Calibri Italic,
+]
+
+% Colors (matching AXI_FMC130 template)
+\definecolor{axiprimary}{HTML}{0D4034}
+\definecolor{axiaccent}{HTML}{18E299}
+\definecolor{axidark}{HTML}{1B2A3D}
+\definecolor{axigray}{HTML}{6B7280}
+\definecolor{axilight}{HTML}{F0FDF4}
+\definecolor{tablerow}{HTML}{F8FAF9}
+\definecolor{peaqviolet}{HTML}{7B5BFF}
+\definecolor{successbg}{HTML}{ECFDF5}
+\definecolor{successborder}{HTML}{059669}
+\definecolor{warnbg}{HTML}{FFFBEB}
+\definecolor{warnborder}{HTML}{F59E0B}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=axiprimary,
+    urlcolor=axiprimary,
+    pdfauthor={AXI Mobility Limited},
+    pdftitle={AXI Mobility x peaq - Milestone Update},
+    pdfsubject={Partnership update for the peaq tech team},
+}
+
+% Page style
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0pt}
+\fancyhead[L]{\small\color{axigray} AXI Mobility \textsf{$\times$} peaq --- Milestone Update}
+\fancyhead[R]{\small\color{axigray} Partnership review}
+\fancyfoot[C]{\small\color{axigray} Page \thepage\ of \pageref{LastPage}}
+
+% Section formatting (with green accent line under section heads)
+\titleformat{\section}{\large\bfseries\color{axiprimary}}{}{0pt}{}[\vspace{2pt}{\color{axiaccent}\hrule height 1pt}]
+\titleformat{\subsection}{\normalsize\bfseries\color{axidark}}{}{0pt}{}
+\titleformat{\subsubsection}{\small\bfseries\color{axiprimary}}{}{0pt}{}
+
+\setstretch{1.1}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{4pt}
+\renewcommand{\arraystretch}{1.25}
+
+% Custom column types
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+
+% Callout boxes
+\newtcolorbox{successbox}{colback=successbg,colframe=successborder,arc=2pt,boxrule=0.6pt,left=8pt,right=8pt,top=6pt,bottom=6pt}
+\newtcolorbox{warnbox}{colback=warnbg,colframe=warnborder,arc=2pt,boxrule=0.6pt,left=8pt,right=8pt,top=6pt,bottom=6pt}
+
+\begin{document}
+
+% === COVER ===
+\noindent
+\begin{minipage}[t]{0.4\textwidth}
+\vspace{0pt}
+\includegraphics[height=0.8cm]{AXI-Logo-link.png}
+\end{minipage}%
+\hfill
+\begin{minipage}[t]{0.5\textwidth}
+\vspace{0pt}
+\raggedleft
+\small\color{axigray}
+Nation Centre, Kimathi Street\\
+P.O.\ Box 49010, G.P.O.\ Nairobi\\
+\href{mailto:team@aximobility.com}{team@aximobility.com}\\
+\href{https://www.aximobility.com}{www.aximobility.com}
+\end{minipage}
+
+\vspace{4pt}
+{\color{axiprimary}\hrule height 1.5pt}
+\vspace{16pt}
+
+\begin{center}
+{\LARGE\bfseries\color{axiprimary} AXI Mobility \textsf{$\times$} peaq\\[4pt] Milestone Update}
+
+\vspace{8pt}
+{\large\color{axidark} What we built, why, how it works, what's next}
+
+\vspace{6pt}
+{\small\color{axigray} Partnership update for the peaq tech, DePIN, and partnership team\\
+Pilot context: ROAM Electric --- 10 internal EV motorcycles, Nairobi\\
+Document Date: May 7, 2026 \enspace|\enspace Ref: AXI/2026/PEAQ/001 \enspace|\enspace Tag: \texttt{peaq-review-2026-05-07}}
+\end{center}
+
+\vspace{12pt}
+
+% === EXECUTIVE SUMMARY ===
+\section{Executive summary}
+
+AXI Mobility runs a fleet platform. AI agents do the work of monitoring vehicles, drivers, energy, commands, and risk; we turn those signals into cases, actions, and reports. Customer is the supervisor. AXI is the operator.
+
+We built three things on peaq, all live on Agung testnet:
+
+\begin{enumerate}[leftmargin=*]
+  \item \textbf{Insurance Risk Oracle} --- verifiable risk scores per vehicle and driver. Powers our 5--15\% premium-discount pitch to insurers.
+  \item \textbf{High-Risk Command Vault} --- $K$-of-$M$ approval for fleet-wide commands (lock 47 bikes, mass route override).
+  \item \textbf{Credential Revocation Registry} --- revocable driver licenses, NTSA inspections, insurance binders. Roadside inspectors and underwriters consult before underwriting.
+\end{enumerate}
+
+Plus a TypeScript SDK and standalone CLI that wraps peaq's three pallets (\texttt{peaqDid}, \texttt{peaqRbac}, \texttt{peaqStorage}), peaq EVM via viem, KMS-backed Ed25519 signers, and a daily Merkle anchor service.
+
+\begin{successbox}
+\textbf{Status today.} 51 unit and fuzz tests passing locally. Agung deploy dry-run successful. Pre-audit hardening checklist about 80\% complete. Production Agung deploy runbook ready (\texttt{AGUNG\_DEPLOY.md}). Mainnet promote is gated on Safe multisig setup and external audit acceptance.
+\end{successbox}
+
+% === WHY PEAQ ===
+\section{Why peaq}
+
+We chose peaq over generic Layer 1s and Layer 2s for one reason: \textbf{mobility-native chain primitives}. Specifically:
+
+\vspace{4pt}
+\begin{tabularx}{\textwidth}{L{3.6cm} L{5.5cm} X}
+\toprule
+\textbf{What we needed} & \textbf{What peaq gives} & \textbf{Generic-L1 alternative cost} \\
+\midrule
+Verifiable identity per vehicle and driver & \texttt{peaqDid} pallet (DID method spec, attribute extrinsics) & Build our own DID method and registry contract \\
+\addlinespace
+On-chain RBAC across operators and regulators & \texttt{peaqRbac} pallet & Build OZ-AccessControl-shape registry plus maintain it \\
+\addlinespace
+Anchor and verify chain-of-custody for compliance & \texttt{peaqStorage} plus EVM contracts side-by-side & Pick one; or run two chains \\
+\addlinespace
+Realistic gas and finality for African DePIN & Substrate finality plus EVM precompiles in a single node & Bridge fees and two-chain ops \\
+\addlinespace
+Mobility ecosystem alignment & DePIN focus, ROAM-class peers & Generic finance and DeFi peers \\
+\bottomrule
+\end{tabularx}
+
+\vspace{6pt}
+
+We are not bridging across two chains. peaq is the chain. Polygon is our \emph{fallback} for the daily Merkle anchor only --- redundancy, not primary. This is a strategic lock, not a tactical call.
+
+% === THE THREE CONTRACTS ===
+\section{What we built (the three use cases)}
+
+Each contract solves a real problem we ran into during the ROAM pilot design.
+
+\subsection{Insurance Risk Oracle}
+
+\subsubsection{Problem}
+Insurance underwriters in Kenya quote premiums based on patchy fleet data. They charge a "risk surcharge" because they cannot trust the numbers. ROAM (and every fleet operator we talked to) overpays by 15--25\%.
+
+\subsubsection{Solution}
+We attest a per-DID risk score on-chain. Append-only, signed by an authorised attestor. Score in $[0, 1000]$. Insurer reads the latest score before quoting. Verifiable. Auditable. Cheap.
+
+\subsubsection{Real example}
+
+\begin{tcolorbox}[colback=axilight,colframe=axiprimary,arc=2pt,boxrule=0.5pt]
+ROAM rider Mary Akinyi has been riding 6 months, 4{,}200 km logged, zero harsh-brake events, 89\% safety score. AXI attestor signs:
+
+{\small\ttfamily attest(did:peaq:mary, score=920, expiresAt=now+30d, payloadHash=0x...)}
+
+Insurer reads \texttt{getLatest(did:peaq:mary)} and sees a score of 920 \enspace$\rightarrow$\enspace premium discount tier 1.
+\end{tcolorbox}
+
+\subsubsection{Why peaq vs a centralised database}
+Insurers will not trust AXI's database; we are an interested party. They will trust an on-chain attestation log signed by independent attestors. The chain gives them deniability ("we relied on a public register").
+
+\subsubsection{Implementation}
+\texttt{InsuranceRiskOracle.sol}: UUPS proxy, OpenZeppelin AccessControl, append-only history. Public read; role-gated write. \texttt{ATTESTOR\_ROLE} for AXI's attestation service; \texttt{CALIBRATOR\_ROLE} for the score-to-premium curve; \texttt{UPGRADER\_ROLE} for upgrades; \texttt{DEFAULT\_ADMIN\_ROLE} for role grants.
+
+\subsection{High-Risk Command Vault}
+
+\subsubsection{Problem}
+Fleet-wide actions are risky. "Lock 47 bikes" is one button, and it has to be reversible, auditable, and multi-party. Operator dashboards routinely have a single-sig escape hatch --- that is how fleets get held ransom.
+
+\subsubsection{Solution}
+$K$-of-$M$ approval gate. AXI staff propose a high-risk command (lock fleet, mass route override, broadcast more than 100 messages, fund withdrawal). $M$ approvers must sign. Once $K$ reach (out of $M$), the command becomes executable by anyone --- including a regulator if AXI staff disappear.
+
+\subsubsection{Real example}
+
+\begin{tcolorbox}[colback=axilight,colframe=axiprimary,arc=2pt,boxrule=0.5pt]
+Mary Akinyi's bike (KMG~117P) shows pack temperature 52$^\circ$C --- risk of fire. AXI ops Brian proposes \texttt{LOCK\_FLEET} on the 3 bikes in the same depot, $K=2$ of $M=3$.
+
+Joy approves (1/2 reached). ROAM ops manager approves (2/2 reached). Vault status flips to \texttt{Approved}. Anyone calls \texttt{execute(commandId, payload)} \enspace$\rightarrow$\enspace bikes locked.
+
+The on-chain audit shows: who proposed, who approved, when, and what.
+\end{tcolorbox}
+
+\subsubsection{Why peaq vs an off-chain Slack approval}
+A Slack approval can be repudiated. An on-chain $K$-of-$M$ cannot. The audit trail is the product --- insurance underwriters and regulators want to see that operators are practising good governance before they price the premium or licence the fleet.
+
+\subsubsection{Implementation}
+\texttt{HighRiskCommandVault.sol}: \emph{not} upgradeable (an upgradeable approval gate is a back door). OpenZeppelin AccessControl, ReentrancyGuard, Pausable. State machine \texttt{Proposed} $\rightarrow$ \texttt{Approved} $\rightarrow$ \texttt{Executed} (terminal). $1 \le K \le M \le 10$. Replay-safe \texttt{commandId} derivation. Permissionless execution once $K$ reached.
+
+\subsection{Credential Revocation Registry}
+
+\subsubsection{Problem}
+Driver licenses, NTSA inspection certificates, and insurance binders all expire or get revoked. Today fleets find out at the roadside check (about \$300 fine plus a tow-truck bill). Insurers find out at claim time (about \$5{,}000 loss). Verification is paper-based and manual.
+
+\subsubsection{Solution}
+Each credential is hashed and registered. When the issuer (NTSA, insurance company, AXI fleet manager) revokes, they call \texttt{revoke(hash, reasonCode)}. Anyone --- insurer, regulator, the driver app itself --- can check \texttt{isRevoked(hash)} for free. Per-issuer scope: only the issuer of a credential can revoke it.
+
+\subsubsection{Real example}
+
+\begin{tcolorbox}[colback=axilight,colframe=axiprimary,arc=2pt,boxrule=0.5pt]
+ROAM rider Wanjiku's NTSA inspection expires 2026-05-15. NTSA officer revokes:
+
+{\small\ttfamily revoke(hash=0x... (Wanjiku's certificate), reasonCode=2 (expired))}
+
+At the next checkpoint, the inspector scans the QR code on Wanjiku's bike. The verify app calls \texttt{isRevoked(hash)} and gets back \texttt{true}. Wanjiku is pulled aside, not jailed for "fraudulent docs". Saves AXI a court date.
+\end{tcolorbox}
+
+\subsubsection{Why peaq vs a central NTSA database}
+NTSA's portal goes down regularly. Our chain does not. Plus: insurance firms outside Kenya want to sell premium products to AXI fleets without trusting Kenya's central databases --- chain-anchored revocation gives them an independent verification path.
+
+\subsubsection{Implementation}
+\texttt{CredentialRevocationRegistry.sol}: UUPS proxy, OpenZeppelin AccessControl. Idempotent re-revoke (preserves the original \texttt{reasonCode}). Batch up to 100 revocations per transaction (handy when an issuer key is rotated). Emergency \texttt{pause()} for incidents.
+
+% === HOW IT FITS TOGETHER ===
+\section{How it all fits together}
+
+\subsection{The data path}
+
+\begin{verbatim}
+                                                     +-- Insurance underwriter
+                                                     |
+                                                     +-- Regulator (NTSA)
+                                                     |
+ROAM ops dashboard --+                               +-- Financier (lender)
+                     |                               |
+AXI Atlas Agent -----+--+ Convex Hub  --signs+anchors--> peaq mainnet (3338)
+                     |                               |
+Driver app ----------+                               +-- Vault (K-of-M)
+                                                     +-- Risk Oracle (append-only)
+                                                     +-- Revocation Registry
+                                                     |
+                                                     +-- peaqDid / peaqRbac / peaqStorage
+\end{verbatim}
+
+\subsection{Three flows, every day}
+
+\subsubsection{Flow A --- Daily Merkle anchor (00:00 UTC)}
+\begin{enumerate}[leftmargin=*]
+  \item Convex cron walks yesterday's \texttt{auditLogs} (every state change is hash-chained).
+  \item Builds a Merkle tree (binary, SHA-256 leaves).
+  \item Calls \texttt{anchor(dayId, root)} on \textbf{peaq mainnet} primary plus \textbf{Polygon mainnet} fallback.
+  \item \texttt{peaqscan}, Subscan, and Polygonscan all show the same root.
+  \item Anyone can pick a random event from yesterday, walk the proof, and verify.
+\end{enumerate}
+
+\subsubsection{Flow B --- Per-event critical hash (live)}
+\begin{enumerate}[leftmargin=*]
+  \item ATL agent flags a high-risk event (siphoning, collision, geofence breach in restricted zone).
+  \item Event is hashed and signed Ed25519 by AXI's KMS-backed signer (the production key never leaves KMS).
+  \item Tx submitted to peaq mainnet \emph{immediately} (not waiting for the daily anchor).
+  \item The case in our cloud dashboard shows the chain TX link as a "verified" pill.
+\end{enumerate}
+
+\subsubsection{Flow C --- Public verification (on demand)}
+Insurance underwriter holds a fleet's risk-attestation hash. They call our \texttt{verify.aximobility.com/api/verify/[hash]} endpoint. We return the Merkle proof plus the on-chain TX. They walk the proof against the chain themselves. No trust in AXI required.
+
+% === THE PEAQ FOOTPRINT ===
+\section{The peaq footprint we use}
+
+\begin{tabularx}{\textwidth}{L{4cm} X L{2.8cm}}
+\toprule
+\textbf{peaq feature} & \textbf{How AXI uses it} & \textbf{Frequency} \\
+\midrule
+EVM smart contracts & 3 production contracts (Vault, Oracle, Registry) & 1--10$\times$ per day per fleet \\
+\addlinespace
+\texttt{peaqDid} pallet & DID issuance per vehicle, per driver, per asset (battery, container) & once per entity creation; \textasciitilde 50/day at pilot scale \\
+\addlinespace
+\texttt{peaqRbac} pallet & Cross-tenant role assignments (issuer, attestor, approver, auditor) & rare; once per role change \\
+\addlinespace
+\texttt{peaqStorage} pallet & Selective evidence storage (compliance binders) & sparse; every monthly compliance recompute \\
+\addlinespace
+EVM precompiles & viem-compatible \texttt{defineChain} plus standard tooling & every chain interaction \\
+\addlinespace
+Mainnet RPC (\texttt{peaq.api.onfinality.io}) & Daily anchor plus per-event critical hash & continuous \\
+\addlinespace
+Agung testnet & Pre-mainnet integration testing & continuous in CI \\
+\bottomrule
+\end{tabularx}
+
+\subsection{Pallet vs EVM split (decision rationale)}
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{DID + Storage + RBAC} use \emph{pallets} --- peaq's native primitives, cheaper, type-safe via Substrate.
+  \item \textbf{Vault + Oracle + Registry} use \emph{EVM contracts} --- rich state machines plus UUPS upgradability plus audit firms know Solidity.
+  \item \textbf{Daily anchor} uses EVM --- tooling plus Polygon redundancy on the same artefact.
+\end{itemize}
+
+% === MILESTONES REACHED ===
+\section{Milestones reached}
+
+\begin{tabularx}{\textwidth}{L{2cm} X C{1cm}}
+\toprule
+\textbf{Date} & \textbf{Milestone} & \textbf{Status} \\
+\midrule
+2026-04 & Lock peaq as primary chain (Polygon as fallback) --- strategic decision in \texttt{POSITIONING.md} & \cellcolor{axilight}\textbf{\color{axiprimary}Done} \\
+2026-04 & Verified 34 peaq facts and flagged 7 open questions in \texttt{VERIFIED\_SPECS.md} & \cellcolor{axilight}\textbf{\color{axiprimary}Done} \\
+2026-04 & Built TypeScript integration package: EVM client (viem), Substrate client, DID issuer/method/resolver, RBAC + Storage pallet wrappers, KMS-Ed25519 signers, idempotency, retry, structured logger & \cellcolor{axilight}\textbf{\color{axiprimary}Done} \\
+2026-04 & Built standalone \texttt{peaq-cli} ops tool with 5 command groups (anchor, did, storage, health, status) & \cellcolor{axilight}\textbf{\color{axiprimary}Done} \\
+2026-04 & Wrote 3 production-shape Solidity contracts with UUPS, OZ AccessControl, custom errors, NatSpec & \cellcolor{axilight}\textbf{\color{axiprimary}Done} \\
+2026-04 & 51 unit and fuzz tests passing on local Foundry harness & \cellcolor{axilight}\textbf{\color{axiprimary}Done} \\
+2026-05 & Slither in CI, severity-gated to high; \texttt{forge fmt} plus snapshot in CI & \cellcolor{axilight}\textbf{\color{axiprimary}Done} \\
+2026-05 & Agung deploy dry-run successful (chain ID 9990) & \cellcolor{axilight}\textbf{\color{axiprimary}Done} \\
+2026-05 & \texttt{AUDIT\_CHECKLIST.md} (about 80\% items closed) & \cellcolor{axilight}\textbf{\color{axiprimary}Done} \\
+2026-05 & \texttt{AGUNG\_DEPLOY.md} --- 25-minute zero-to-first-attestation runbook & \cellcolor{axilight}\textbf{\color{axiprimary}Done} \\
+2026-05 & Per-contract STRIDE threat models published in \texttt{threat-models/} & \cellcolor{axilight}\textbf{\color{axiprimary}Done} \\
+2026-05 & \texttt{SECURITY.md} responsible disclosure policy & \cellcolor{axilight}\textbf{\color{axiprimary}Done} \\
+2026-05 & \texttt{PEAQ\_REVIEW.md} hand-off packet for peaq tech team & \cellcolor{axilight}\textbf{\color{axiprimary}Done} \\
+2026-05 & This milestone document & \cellcolor{axilight}\textbf{\color{axiprimary}Done} \\
+\bottomrule
+\end{tabularx}
+
+% === WHAT'S NEXT ===
+\section{What's next (the public roadmap)}
+
+\begin{tabularx}{\textwidth}{L{3.4cm} L{2.5cm} X}
+\toprule
+\textbf{Milestone} & \textbf{When} & \textbf{What it unlocks} \\
+\midrule
+Production Agung deploy & Week 1 & Live testing against real Agung; ROAM internal pilot can chain-anchor daily \\
+\addlinespace
+Internal pilot launch (10 ROAM bikes) & Week 2 & First real chain anchor, first real risk attestation, first real revocation \\
+\addlinespace
+External audit firm engagement & Week 3--4 & Lock contracts, tag \texttt{audit-v1} \\
+\addlinespace
+Audit completion plus remediation & Week 4--8 & Gate to mainnet \\
+\addlinespace
+peaq mainnet promote & Month 2 & Production daily anchor, Safe 4-of-7 multisig \texttt{DEFAULT\_ADMIN} \\
+\addlinespace
+First external customer (REVLOG batteries) & Month 3 & Same platform, different ontology \\
+\addlinespace
+Bug bounty live & Month 3 & Phase 5 gate per \texttt{EXECUTION\_ORDER.md} \\
+\addlinespace
+First sovereign customer deploy & Month 6+ & Atlas Sovereign K2 LoRA on AWS GPU for PII-touching reasoning \\
+\bottomrule
+\end{tabularx}
+
+% === ASKS ===
+\section{What we'd love from the peaq team}
+
+\subsection{Direct answers to seven unverified questions}
+
+These come from \texttt{VERIFIED\_SPECS.md}. We want to publish answers in that file as "verified, source: peaq team confirmation".
+
+\begin{enumerate}[leftmargin=*]
+  \item \textbf{Exact extrinsic fees.} What does \texttt{peaqDid.addAttribute} cost in PEAQ and USD? What about \texttt{peaqStorage.addItem}? We need this for capacity planning and cost-of-anchor model.
+  \item \textbf{DePIN bulk-write pricing.} Is there a tier for high-frequency writes? At ROAM Phase 4 (about 10{,}000 vehicles), we will write 10--100 events per second.
+  \item \textbf{W3C JSON-LD VC compliance.} Does peaq DID resolve correctly inside W3C VC libraries? Our insurance arbitrage thesis depends on insurers being able to consume our DIDs in their existing tooling.
+  \item \textbf{Decentralisation metrics.} Validators and collators count plus geographic distribution plus nakamoto coefficient. We need this for our threat model and uptime guarantee.
+  \item \textbf{Major incidents and forks since mainnet launch.} For our risk model.
+  \item \textbf{KREST $\rightarrow$ PEAQ migration plan.} What is the canary network policy? Is there guidance for partners?
+  \item \textbf{Official viem chain definition.} Does peaq plan to ship one? We are synthesising via \texttt{defineChain} today.
+\end{enumerate}
+
+\subsection{Code review}
+
+\begin{itemize}[leftmargin=*]
+  \item Validate our \texttt{did:peaq:...} issuer and resolver against the spec repo.
+  \item Validate our pallet wrapper code (storage and RBAC).
+  \item Spot-check the EVM contracts; flag anything peaq has seen go wrong in other DePIN deployments.
+\end{itemize}
+
+\subsection{Mainnet promotion guidance}
+
+\begin{itemize}[leftmargin=*]
+  \item What is peaq team's preferred audit firm list? (We are considering Trail of Bits, OpenZeppelin, Halborn, Sigma Prime.)
+  \item What monitoring requirements does peaq want to see before a partner goes mainnet?
+  \item Multisig setup recommendations? (Safe on peaq EVM is the path; signers plus threshold.)
+  \item Public launch playbook --- does peaq announce and amplify partner mainnet launches? AXI / ROAM is the first east-African EV-fleet integration; it is worth amplifying.
+\end{itemize}
+
+\subsection{Partnership amplification (when ready)}
+
+\begin{itemize}[leftmargin=*]
+  \item Co-marketing for the ROAM mainnet promote --- joint announcement with ROAM and a peaq team blog post.
+  \item DePIN ecosystem listing --- list AXI Mobility on peaq's DePIN partners page.
+  \item Reference architecture write-up --- happy to contribute a "how AXI uses peaq" reference architecture for other DePIN partners.
+\end{itemize}
+
+% === NEXT ACTIONS ===
+\section{Next actions}
+
+\begin{warnbox}
+\textbf{What we need from peaq:} a 1-hour kickoff call to walk the contracts, answer the seven questions above, and align on mainnet promotion gates. We have time slots available all week --- reply to \href{mailto:team@aximobility.com}{team@aximobility.com}.
+\end{warnbox}
+
+\subsection{Repos for review}
+\begin{itemize}[leftmargin=*]
+  \item \textbf{peaq-contracts}: \href{https://github.com/aximobility/peaq-contracts}{github.com/aximobility/peaq-contracts}
+  \item \textbf{peaq-integration}: \href{https://github.com/aximobility/peaq-integration}{github.com/aximobility/peaq-integration}
+  \item Frozen tag for this review: \texttt{peaq-review-2026-05-07}
+\end{itemize}
+
+\subsection{Documents in this packet}
+\begin{itemize}[leftmargin=*]
+  \item This document (\texttt{AXI\_peaq\_Milestone\_Update.tex})
+  \item \texttt{PEAQ\_REVIEW.md} --- 13-section technical review packet
+  \item \texttt{AUDIT\_CHECKLIST.md} --- pre-audit hardening status
+  \item \texttt{AGUNG\_DEPLOY.md} --- step-by-step deploy walkthrough
+  \item \texttt{SECURITY.md} --- responsible disclosure policy
+  \item \texttt{threat-models/} --- per-contract STRIDE plus DREAD analysis
+  \item \texttt{VERIFIED\_SPECS.md} --- 34 verified facts plus 7 open questions
+\end{itemize}
+
+\vspace{16pt}
+
+% === SHAPE OF THE PARTNERSHIP ===
+\section{The shape of the partnership}
+
+\begin{tabularx}{\textwidth}{X X}
+\toprule
+\textbf{AXI Mobility brings} & \textbf{peaq brings} \\
+\midrule
+ROAM (10 bikes pilot, then hundreds) & Mobility-native chain \\
+REVLOG (battery custody) & DID + RBAC + Storage pallets \\
+Kusini (commodity logistics) & EVM + Substrate single node \\
+KTP (transit data) & DePIN ecosystem \\
+Service-as-Software pricing & Validator network \\
+22 monorepo workspaces & SDK + reference architecture \\
+Atlas AI agent fleet & Mainnet faucet + RPC \\
+9-tool observability stack & Audit firm referrals \\
+Production hardening discipline & Co-marketing reach \\
+& DePIN partner amplification \\
+\bottomrule
+\end{tabularx}
+
+\vspace{14pt}
+
+Both sides ship end of Q2 2026. Both sides win when ROAM goes mainnet on peaq.
+
+\vspace{18pt}
+
+% === SIGN-OFF ===
+\noindent\hrulefill
+
+\vspace{8pt}
+
+\noindent\textbf{\color{axiprimary}Looking forward to the conversation.}
+
+\vspace{4pt}
+
+\noindent Brian Mwai \enspace{\color{axigray}|}\enspace Joy C. Langat \enspace{\color{axigray}|}\enspace AXI Mobility Limited \enspace{\color{axigray}|}\enspace 2026-05-07
+
+\end{document}

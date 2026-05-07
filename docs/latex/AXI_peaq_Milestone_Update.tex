@@ -248,8 +248,8 @@
 \begin{tikzpicture}
   \node[draw=axiaccent, fill=axilight, rounded corners=8pt, minimum width=14cm, minimum height=2.4cm, align=center, blur shadow={shadow blur steps=4}] {
     {\Large\bfseries\color{axiprimary} AXI MOBILITY LIMITED}\\[4pt]
-    {\normalsize\color{axidark} Service-as-Software for fleet operations}\\[2pt]
-    {\small\color{axigray} Building Africa's mobility infrastructure on peaq}
+    {\normalsize\color{axidark} A fleet platform built on peaq}\\[2pt]
+    {\small\color{axigray} Nairobi, Kenya}
   };
 \end{tikzpicture}
 \end{center}
@@ -279,22 +279,30 @@
 % ============================================================
 % EXECUTIVE SUMMARY
 % ============================================================
-\section{Executive summary}
+\section{Summary}
 
-AXI Mobility runs a fleet platform. AI agents do the work of monitoring vehicles, drivers, energy, commands, and risk; we turn those signals into cases, actions, and reports. Customer is the supervisor. AXI is the operator.
+AXI runs a fleet platform. We monitor vehicles, drivers, batteries, and route data, then turn that into alerts, actions, and reports for the fleet owner.
 
 \subsection{What we built on peaq}
 
-Three production-shape Solidity contracts (Insurance Risk Oracle, High-Risk Command Vault, Credential Revocation Registry), all live on Agung testnet. Plus a TypeScript SDK and standalone CLI that wraps peaq's three pallets (\texttt{peaqDid}, \texttt{peaqRbac}, \texttt{peaqStorage}), peaq EVM via viem, KMS-backed Ed25519 signers, and a daily Merkle anchor service.
+Three smart contracts on Agung testnet:
 
-\subsection{Status today}
-
-\begin{successbox}[title=Where we are]
 \begin{itemize}[leftmargin=*, nosep]
-  \item \textbf{51 unit and fuzz tests passing} on the local Foundry harness.
-  \item \textbf{Agung deploy dry-run successful.} Production deploy runbook ready (\texttt{AGUNG\_DEPLOY.md}) --- 25 minutes from a blank \texttt{.env} to first attestation.
-  \item \textbf{Pre-audit hardening checklist about 80\% closed} (\texttt{AUDIT\_CHECKLIST.md}). Remaining items: Echidna invariant runs, multisig setup, external audit firm engagement, \texttt{audit-v1} freeze tag.
-  \item \textbf{Mainnet promote} is gated on Safe 4-of-7 multisig admin and external audit acceptance. Realistic window: 6--10 weeks from audit kickoff.
+  \item \textbf{Insurance Risk Oracle} - publishes a per-driver risk score that insurers can read.
+  \item \textbf{High-Risk Command Vault} - requires multiple sign-offs before a fleet-wide action runs.
+  \item \textbf{Credential Revocation Registry} - lets issuers cancel a license or certificate so anyone can check it instantly.
+\end{itemize}
+
+Plus a TypeScript library and command-line tool that talk to peaq's identity, role, and storage features, sign with hardware-backed keys, and post a daily summary of all events to the chain.
+
+\subsection{Where we are today}
+
+\begin{successbox}[title=Status]
+\begin{itemize}[leftmargin=*, nosep]
+  \item \textbf{51 tests passing} on the local test setup.
+  \item \textbf{Agung dry-run deploy successful.} 25 minutes from a blank config to the first signed event.
+  \item \textbf{About 80\% of the pre-audit checklist is closed.} Remaining: extra security testing, multi-signature wallet setup, external auditor, and a frozen review tag.
+  \item \textbf{Going live on mainnet} needs a 4-of-7 multi-signature wallet and an external audit. Realistic window: 6 to 10 weeks from audit start.
 \end{itemize}
 \end{successbox}
 
@@ -305,20 +313,20 @@ Three production-shape Solidity contracts (Insurance Risk Oracle, High-Risk Comm
 % ============================================================
 \section{Why peaq}
 
-We chose peaq over generic Layer 1s and Layer 2s for one reason: \textbf{mobility-native chain primitives}.
+We picked peaq because it ships features built for mobility out of the box. Other chains would force us to build (and maintain) those features ourselves.
 
 \subsection{The decision matrix}
 
 \begin{center}
 \begin{tabular}{p{3.6cm} p{5cm} p{6cm}}
 \toprule
-{\bfseries\color{axiprimary}What we needed} & {\bfseries\color{axiprimary}What peaq gives} & {\bfseries\color{axiprimary}Generic-L1 alternative cost} \\
+{\bfseries\color{axiprimary}What we needed} & {\bfseries\color{axiprimary}What peaq gives} & {\bfseries\color{axiprimary}Cost on a generic chain} \\
 \midrule
-Verifiable identity per vehicle and driver & \texttt{peaqDid} pallet (DID method spec, attribute extrinsics) & Build our own DID method and registry contract \\
+A trusted identity for every vehicle and driver & \texttt{peaqDid} (built-in identity system) & Build our own identity registry \\
 \addlinespace[2pt]
-On-chain RBAC across operators and regulators & \texttt{peaqRbac} pallet & Build OZ-AccessControl-shape registry + maintain it \\
+Roles for operators, regulators, and auditors & \texttt{peaqRbac} (built-in role system) & Write and maintain a permissions contract \\
 \addlinespace[2pt]
-Anchor and verify chain-of-custody for compliance & \texttt{peaqStorage} + EVM contracts side-by-side & Pick one, or run two chains \\
+A way to record evidence so anyone can verify it & \texttt{peaqStorage} + smart contracts on the same chain & Pick one tool or run two chains \\
 \addlinespace[2pt]
 Realistic gas and finality for African DePIN & Substrate finality + EVM precompiles in one node & Bridge fees and two-chain ops \\
 \addlinespace[2pt]
@@ -330,74 +338,72 @@ Mobility ecosystem alignment & DePIN focus, ROAM-class peers & Generic finance a
 \vspace{8pt}
 
 \begin{infobox}[title=Strategic lock]
-We are not bridging across two chains. \textbf{peaq is the chain.} Polygon is our \emph{fallback} for the daily Merkle anchor only --- redundancy, not primary. This decision lives in \texttt{POSITIONING.md} as a strategic lock, not a tactical call.
+We are not running on two chains. \textbf{peaq is the main chain.} We post a daily summary to Polygon as a backup only - in case peaq has an outage. This is a deliberate, long-term choice.
 \end{infobox}
 
 % ============================================================
 % THE THREE CONTRACTS
 % ============================================================
-\section{What we built (the three use cases)}
+\section{What we built (three use cases)}
 
-Each contract solves a real problem we ran into during the ROAM pilot design.
+Each contract solves a real problem from our ROAM pilot.
 
 % ----------------------------- 3.1 Insurance Risk Oracle
 \subsection{Insurance Risk Oracle}
 
-\subsubsection{Problem}
-Insurance underwriters in Kenya quote premiums based on patchy fleet data. They charge a "risk surcharge" because they cannot trust the numbers. ROAM (and every fleet operator we talked to) overpays by 15--25\%.
+\subsubsection{The problem}
+Insurers in Kenya price premiums on patchy fleet data, so they add a 15-25\% surcharge they call "uncertainty risk". ROAM and every fleet we spoke to overpays.
 
-\subsubsection{Solution}
-We attest a per-DID risk score on-chain. Append-only, signed by an authorised attestor. Score in $[0, 1000]$. Insurer reads the latest score before quoting. Verifiable. Auditable. Cheap.
+\subsubsection{The solution}
+We post a risk score (0-1000) for each driver to the chain. Insurers read the latest score before quoting. The log is append-only and signed - they can audit every score themselves.
 
-\subsubsection{End-to-end flow}
+\subsubsection{How it works}
 
 \begin{center}
 \adjustbox{max width=0.8\textwidth, max totalheight=5cm, center}{
 \begin{tikzpicture}[node distance=2.2cm and 1.2cm]
-  \node[seqactor] (atl) {ATL\\Behavior Agent};
-  \node[seqactor, right=of atl] (axi) {AXI\\Backend};
-  \node[seqactor, right=of axi] (anchor) {Daily\\Anchor};
+  \node[seqactor] (atl) {AI agent\\(driver)};
+  \node[seqactor, right=of atl] (axi) {AXI\\backend};
+  \node[seqactor, right=of axi] (anchor) {Daily\\summary};
   \node[seqactor, right=of anchor] (oracle) {Risk\\Oracle};
-  \node[seqactor, right=of oracle] (pol) {Insurance\\Policy};
+  \node[seqactor, right=of oracle] (pol) {Insurer};
 
-  \draw[seqarrow] (atl) -- node[above, font=\scriptsize] {30d behavior score} (axi);
-  \draw[seqarrow] (axi) -- node[above, font=\scriptsize] {build root} (anchor);
-  \draw[seqarrow] (axi) to[bend left=25] node[above, font=\scriptsize] {attest(did, score, root, km)} (oracle);
-  \draw[seqarrow] (pol) to[bend right=25] node[below, font=\scriptsize] {riskScore + multiplier} (oracle);
+  \draw[seqarrow] (atl) -- node[above, font=\scriptsize] {30-day score} (axi);
+  \draw[seqarrow] (axi) -- node[above, font=\scriptsize] {build summary} (anchor);
+  \draw[seqarrow] (axi) to[bend left=25] node[above, font=\scriptsize] {post score on-chain} (oracle);
+  \draw[seqarrow] (pol) to[bend right=25] node[below, font=\scriptsize] {read score, set premium} (oracle);
 \end{tikzpicture}
 }
 \end{center}
 
-\subsubsection{Real ROAM scenario}
+\subsubsection{Example}
 
 \begin{scenariobox}[title=ROAM rider Mary Akinyi]
-6 months riding $\cdot$ 4{,}200 km logged $\cdot$ 0 harsh-brake events $\cdot$ 89\% safety score.
+6 months riding $\cdot$ 4{,}200 km $\cdot$ 0 harsh-brake events $\cdot$ 89\% safety score.
 
 \vspace{2pt}
-AXI attestor signs:
-
-\hspace{1em}{\ttfamily\color{axiprimary} attest(did:peaq:mary, score=920, expiresAt=now+30d, payloadHash=0x...)}
+AXI posts: score 920, expires in 30 days.
 
 \vspace{2pt}
-Insurer reads \texttt{getLatest(did:peaq:mary)} $\rightarrow$ score 920 $\rightarrow$ premium discount tier 1.
+Insurer reads the score $\rightarrow$ Mary qualifies for the lowest premium tier.
 \end{scenariobox}
 
-\subsubsection{Why peaq vs a centralised database}
-Insurers will not trust AXI's database; we are an interested party. They will trust an on-chain attestation log signed by independent attestors. The chain gives them deniability: "we relied on a public register".
+\subsubsection{Why on-chain, not in our database}
+Insurers will not trust AXI's database - we are an interested party. They will trust a public log they can read and audit independently.
 
-\subsubsection{Implementation}
+\subsubsection{Roles}
 
 \begin{center}
 \begin{tabular}{p{3.8cm} p{11.5cm}}
 \toprule
-{\bfseries\color{axiprimary}Contract} & \texttt{InsuranceRiskOracle.sol} (UUPS proxy, append-only history) \\
+{\bfseries\color{axiprimary}Contract} & \texttt{InsuranceRiskOracle.sol} (upgradeable, append-only) \\
 \midrule
-\texttt{ATTESTOR\_ROLE} & AXI attestation service publishes scores \\
-\texttt{CALIBRATOR\_ROLE} & Risk team tunes the score-to-premium curve \\
-\texttt{UPGRADER\_ROLE} & Multisig 4-of-7 pushes upgrades \\
-\texttt{DEFAULT\_ADMIN\_ROLE} & Multisig grants and revokes roles \\
-Score range & $[0, 1000]$ \\
-Staleness gate & \texttt{riskScore()} reverts if $> 7$ days old \\
+\texttt{ATTESTOR\_ROLE} & AXI's service that publishes scores \\
+\texttt{CALIBRATOR\_ROLE} & Risk team that tunes the score-to-premium curve \\
+\texttt{UPGRADER\_ROLE} & Multi-sig wallet (4-of-7) that ships upgrades \\
+\texttt{DEFAULT\_ADMIN\_ROLE} & Multi-sig wallet that grants and revokes roles \\
+Score range & 0 to 1000 \\
+Freshness rule & Score must be less than 7 days old, otherwise rejected \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -406,13 +412,13 @@ Staleness gate & \texttt{riskScore()} reverts if $> 7$ days old \\
 \newpage
 \subsection{High-Risk Command Vault}
 
-\subsubsection{Problem}
-Fleet-wide actions are risky. "Lock 47 bikes" is one button, and it has to be reversible, auditable, and multi-party. Operator dashboards routinely have a single-sig escape hatch --- that is how fleets get held ransom.
+\subsubsection{The problem}
+Fleet-wide actions are dangerous. "Lock 47 bikes" is one click, and it has to be reversible, auditable, and need more than one person to run. Most operator dashboards have a single-password override - that is how fleets get held ransom.
 
-\subsubsection{Solution}
-$K$-of-$M$ approval gate. AXI staff propose a high-risk command (lock fleet, mass route override, broadcast more than 100 messages, fund withdrawal). $M$ approvers must sign. Once $K$ reach (out of $M$), the command becomes executable by anyone --- including a regulator if AXI staff disappear.
+\subsubsection{The solution}
+A multi-person approval gate. AXI staff propose a high-risk command (lock the fleet, override every route, send a mass broadcast, withdraw funds). A pre-set group of approvers must sign. Once enough approve (e.g. 2 of 3), anyone can run the command - including a regulator if AXI staff disappear.
 
-\subsubsection{State machine}
+\subsubsection{States the command goes through}
 
 \begin{center}
 \adjustbox{max width=0.8\textwidth, max totalheight=5cm, center}{
@@ -423,12 +429,12 @@ $K$-of-$M$ approval gate. AXI staff propose a high-risk command (lock fleet, mas
   \node[stateterminal, below=1.4cm of proposed] (cancelled) {Cancelled};
   \node[stateterminal, below=1.4cm of approved] (expired) {Expired};
 
-  \draw[seqarrow] (proposed) -- node[above, font=\scriptsize] {$K$ approvals} (approved);
-  \draw[seqarrow] (approved) -- node[above, font=\scriptsize] {execute()} (executed);
-  \draw[seqarrow] (proposed) -- node[right, font=\scriptsize] {cancel()} (cancelled);
-  \draw[seqarrow] (approved) -- node[right, font=\scriptsize] {markExpired()} (expired);
-  \draw[seqarrow, dashed] (approved.south) -- node[above, font=\scriptsize, sloped] {cancel()} (cancelled.east);
-  \draw[seqarrow, dashed] (proposed.south) -- node[above, font=\scriptsize, sloped] {markExpired()} (expired.west);
+  \draw[seqarrow] (proposed) -- node[above, font=\scriptsize] {enough approvals} (approved);
+  \draw[seqarrow] (approved) -- node[above, font=\scriptsize] {run} (executed);
+  \draw[seqarrow] (proposed) -- node[right, font=\scriptsize] {cancel} (cancelled);
+  \draw[seqarrow] (approved) -- node[right, font=\scriptsize] {expire} (expired);
+  \draw[seqarrow, dashed] (approved.south) -- node[above, font=\scriptsize, sloped] {cancel} (cancelled.east);
+  \draw[seqarrow, dashed] (proposed.south) -- node[above, font=\scriptsize, sloped] {expire} (expired.west);
 \end{tikzpicture}
 }
 
@@ -436,118 +442,116 @@ $K$-of-$M$ approval gate. AXI staff propose a high-risk command (lock fleet, mas
 {\footnotesize\color{axigray} Bright green = initial $\cdot$ Gray = terminal $\cdot$ Dashed = also reachable}
 \end{center}
 
-\subsubsection{End-to-end flow}
+\subsubsection{How it works}
 
 \begin{center}
 \adjustbox{max width=0.8\textwidth, max totalheight=5cm, center}{
 \begin{tikzpicture}[node distance=1.8cm and 0.9cm]
-  \node[seqactor] (op) {AXI Op};
+  \node[seqactor] (op) {AXI staff};
   \node[seqactor, right=of op] (vault) {Vault};
-  \node[seqactor, right=of vault] (apprB) {Approver B};
-  \node[seqactor, right=of apprB] (apprC) {Approver C};
-  \node[seqactor, right=of apprC] (exec) {Executor};
+  \node[seqactor, right=of vault] (apprB) {Approver 1};
+  \node[seqactor, right=of apprB] (apprC) {Approver 2};
+  \node[seqactor, right=of apprC] (exec) {Anyone};
 
-  \draw[seqarrow] (op) -- node[above, font=\scriptsize] {propose($K{=}2, M{=}3$)} (vault);
+  \draw[seqarrow] (op) -- node[above, font=\scriptsize] {propose (need 2 of 3)} (vault);
   \draw[seqarrow] (apprB) to[bend right=15] node[above, font=\scriptsize] {approve} (vault);
-  \draw[seqarrow] (apprC) to[bend right=20] node[above, font=\scriptsize] {approve $\rightarrow$ Approved} (vault);
-  \draw[seqarrow] (exec) to[bend right=25] node[above, font=\scriptsize] {execute} (vault);
-  \draw[seqarrow, dashed] (vault) to[bend right=35] node[below, font=\scriptsize] {emit Executed} (exec);
+  \draw[seqarrow] (apprC) to[bend right=20] node[above, font=\scriptsize] {approve $\rightarrow$ ready} (vault);
+  \draw[seqarrow] (exec) to[bend right=25] node[above, font=\scriptsize] {run} (vault);
+  \draw[seqarrow, dashed] (vault) to[bend right=35] node[below, font=\scriptsize] {done} (exec);
 \end{tikzpicture}
 }
 \end{center}
 
-\subsubsection{Real ROAM scenario}
+\subsubsection{Example}
 
-\begin{scenariobox}[title=Mary's bike pack-temp spike]
-KMG~117P shows pack temperature 52$^\circ$C --- risk of fire. AXI ops Brian proposes \texttt{LOCK\_FLEET} on the 3 bikes in the same depot, $K = 2$ of $M = 3$.
+\begin{scenariobox}[title=Mary's bike battery overheats]
+KMG~117P shows battery temperature 52$^\circ$C - fire risk. Brian proposes "lock the 3 bikes in this depot" (needs 2 of 3 approvals).
 
 \vspace{2pt}
 \begin{itemize}[leftmargin=*, nosep]
-  \item Joy approves \enspace$\cdot$\enspace 1/2 reached
-  \item ROAM ops manager approves \enspace$\cdot$\enspace 2/2 reached \enspace$\rightarrow$\enspace status flips to \textbf{Approved}
-  \item Anyone calls \texttt{execute(commandId, payload)} \enspace$\rightarrow$\enspace bikes locked
+  \item Joy approves \enspace$\cdot$\enspace 1 of 2 in
+  \item ROAM ops manager approves \enspace$\cdot$\enspace 2 of 2 \enspace$\rightarrow$\enspace ready to run
+  \item Anyone runs the command \enspace$\rightarrow$\enspace bikes locked
 \end{itemize}
 
-The on-chain audit shows: who proposed, who approved, when, and what.
+The chain shows who proposed, who approved, when, and what.
 \end{scenariobox}
 
-\subsubsection{Why peaq vs an off-chain Slack approval}
-A Slack approval can be repudiated. An on-chain $K$-of-$M$ cannot. The audit trail is the product --- insurance underwriters and regulators want to see operators are practising good governance before they price the premium or licence the fleet.
+\subsubsection{Why on-chain, not Slack approvals}
+A Slack approval can be denied later. An on-chain approval cannot. The audit trail is the product - insurers and regulators want proof of good governance before they price premiums or grant licences.
 
-\subsubsection{Implementation}
+\subsubsection{Roles}
 
 \begin{center}
 \begin{tabular}{p{3.8cm} p{11.5cm}}
 \toprule
 {\bfseries\color{axiprimary}Contract} & \texttt{HighRiskCommandVault.sol} (\textbf{not upgradeable}) \\
 \midrule
-Threshold range & $1 \le K \le M \le 10$ \\
+Approval threshold & 1 to 10 approvers (set per command) \\
 Expiry window & 1 minute to 30 days \\
-Replay-safety & \texttt{commandId} hashes \texttt{(commandType, targetDid, payloadHash, K, M, nowTs, proposer)} \\
-Payload binding & \texttt{propose()} stores \texttt{keccak256(payload)}; \texttt{execute()} must present same bytes \\
-Permissionless execute & Once $K$ reached, anyone can run it (no value extraction; documented MEV note) \\
+Replay safety & Each command has a unique ID, so the same command cannot run twice \\
+Payload check & The proposal locks the exact payload; running it must use the same bytes \\
+Anyone can run it & Once approved, any address can run it - no AXI lock-in \\
 \bottomrule
 \end{tabular}
 \end{center}
 
 \begin{notebox}[title=Why not upgradeable]
-An upgradeable approval gate is a back door. The Vault is permanent --- operators see exactly what they are approving and there is no path for AXI to silently change the rules.
+An upgradeable approval gate is a back door. The Vault is permanent - operators see the exact rules they are approving, and AXI cannot silently change them later.
 \end{notebox}
 
 % ----------------------------- 3.3 Credential Revocation Registry
 \newpage
 \subsection{Credential Revocation Registry}
 
-\subsubsection{Problem}
-Driver licenses, NTSA inspection certificates, and insurance binders all expire or get revoked. Today fleets find out at the roadside check (about \$300 fine plus a tow-truck bill). Insurers find out at claim time (about \$5{,}000 loss). Verification is paper-based and manual.
+\subsubsection{The problem}
+Driver licences, NTSA inspection certificates, and insurance binders expire or get revoked. Today fleets find out at the roadside check (around \$300 fine + tow-truck bill). Insurers find out at claim time (around \$5{,}000 loss). Verification is still paper-based.
 
-\subsubsection{Solution}
-Each credential is hashed and registered. When the issuer (NTSA, insurance company, AXI fleet manager) revokes, they call \texttt{revoke(hash, reasonCode)}. Anyone --- insurer, regulator, the driver app itself --- can check \texttt{isRevoked(hash)} for free. Per-issuer scope: only the issuer of a credential can revoke it.
+\subsubsection{The solution}
+Each credential gets a unique fingerprint stored on-chain. When the issuer (NTSA, insurance, fleet manager) cancels it, they post the cancellation. Anyone - insurer, regulator, the rider app - can instantly check whether a credential is still valid. Only the original issuer can cancel their own credential.
 
-\subsubsection{End-to-end flow}
+\subsubsection{How it works}
 
 \begin{center}
 \adjustbox{max width=0.8\textwidth, max totalheight=5cm, center}{
 \begin{tikzpicture}[node distance=2.6cm and 1.4cm]
-  \node[seqactor] (op) {AXI Op};
-  \node[seqactor, right=of op] (axi) {AXI Backend};
+  \node[seqactor] (op) {AXI staff};
+  \node[seqactor, right=of op] (axi) {AXI\\backend};
   \node[seqactor, right=of axi] (reg) {Registry};
-  \node[seqactor, right=of reg] (verifier) {External Verifier};
+  \node[seqactor, right=of reg] (verifier) {Anyone};
 
-  \draw[seqarrow] (op) -- node[above, font=\scriptsize] {credential.revoke} (axi);
-  \draw[seqarrow] (axi) -- node[above, font=\scriptsize] {revoke(hash, reasonCode)} (reg);
-  \draw[seqarrow] (reg) to[bend right=20] node[below, font=\scriptsize] {tx receipt} (axi);
-  \draw[seqarrow] (verifier) to[bend right=25] node[above, font=\scriptsize] {isRevoked(hash)} (reg);
-  \draw[seqarrow] (reg) to[bend right=35] node[below, font=\scriptsize] {true} (verifier);
+  \draw[seqarrow] (op) -- node[above, font=\scriptsize] {cancel credential} (axi);
+  \draw[seqarrow] (axi) -- node[above, font=\scriptsize] {post cancel + reason} (reg);
+  \draw[seqarrow] (reg) to[bend right=20] node[below, font=\scriptsize] {confirmation} (axi);
+  \draw[seqarrow] (verifier) to[bend right=25] node[above, font=\scriptsize] {is it cancelled?} (reg);
+  \draw[seqarrow] (reg) to[bend right=35] node[below, font=\scriptsize] {yes} (verifier);
 \end{tikzpicture}
 }
 \end{center}
 
-\subsubsection{Real ROAM scenario}
+\subsubsection{Example}
 
 \begin{scenariobox}[title=ROAM rider Wanjiku's NTSA inspection]
-Inspection certificate expires 2026-05-15. NTSA officer revokes:
-
-\hspace{1em}{\ttfamily\color{axiprimary} revoke(hash=0x... (Wanjiku's certificate), reasonCode=2 (expired))}
+Inspection expires on 2026-05-15. The NTSA officer cancels it on-chain (reason: expired).
 
 \vspace{2pt}
-At the next checkpoint, the inspector scans the QR code on Wanjiku's bike. The verify app calls \texttt{isRevoked(hash)} $\rightarrow$ \textbf{true}. Wanjiku is pulled aside, not jailed for "fraudulent docs". Saves AXI a court date.
+At the next checkpoint, the inspector scans the QR code on Wanjiku's bike. The app checks the registry $\rightarrow$ cancelled. Wanjiku gets a polite warning, not a fraud charge. AXI avoids a court date.
 \end{scenariobox}
 
-\subsubsection{Why peaq vs a central NTSA database}
-NTSA's portal goes down regularly. Our chain does not. Plus: insurance firms outside Kenya want to sell premium products to AXI fleets without trusting Kenya's central databases --- chain-anchored revocation gives them an independent verification path.
+\subsubsection{Why on-chain, not the NTSA portal}
+NTSA's portal goes down often. The chain does not. And insurers outside Kenya can verify without trusting any single Kenyan database.
 
-\subsubsection{Implementation}
+\subsubsection{Roles}
 
 \begin{center}
 \begin{tabular}{p{3.8cm} p{11.5cm}}
 \toprule
-{\bfseries\color{axiprimary}Contract} & \texttt{CredentialRevocationRegistry.sol} (UUPS proxy) \\
+{\bfseries\color{axiprimary}Contract} & \texttt{CredentialRevocationRegistry.sol} (upgradeable) \\
 \midrule
-\texttt{ISSUER\_ROLE} & Per-credential issuer scope (only issuer of a credential can revoke it) \\
-\texttt{revoke()} & Idempotent at boundary --- re-revoke is rejected to preserve original \texttt{reasonCode} \\
-\texttt{revokeBatch()} & Up to 100 revocations per transaction (handy for issuer-key rotation) \\
-\texttt{unrevoke()} & Admin-only emergency function (in case issuer key is compromised) \\
+\texttt{ISSUER\_ROLE} & Only the original issuer can cancel a credential they issued \\
+\texttt{revoke()} & Cannot cancel the same credential twice (preserves the first reason) \\
+\texttt{revokeBatch()} & Cancel up to 100 at once (useful when rotating an issuer's key) \\
+\texttt{unrevoke()} & Admin-only emergency undo (used if an issuer key is compromised) \\
 \texttt{pause()} & Emergency stop \\
 \bottomrule
 \end{tabular}
@@ -566,23 +570,23 @@ NTSA's portal goes down regularly. Our chain does not. Plus: insurance firms out
 \begin{tikzpicture}[node distance=1.2cm and 1.6cm]
   % AXI side
   \node[flowblock] (cloud) {ROAM ops\\dashboard};
-  \node[flowblock, below=of cloud] (atlas) {AXI Atlas\\Agent};
+  \node[flowblock, below=of cloud] (atlas) {AXI AI\\agents};
   \node[flowblock, below=of atlas] (driver) {Driver\\app};
 
-  \node[flowaccent, right=2.2cm of atlas, minimum width=3.4cm, minimum height=2.4cm] (hub) {\textbf{Convex Hub}\\\footnotesize signs +\\anchors};
+  \node[flowaccent, right=2.2cm of atlas, minimum width=3.4cm, minimum height=2.4cm] (hub) {\textbf{AXI backend}\\\footnotesize signs +\\posts to chain};
 
   % peaq side - contracts
-  \node[flowexternal, right=of hub, minimum width=3.4cm] (vault) {Vault\\$K$-of-$M$};
-  \node[flowexternal, above=0.3cm of vault] (oracle) {Insurance\\Risk Oracle};
+  \node[flowexternal, right=of hub, minimum width=3.4cm] (vault) {Vault\\(approvals)};
+  \node[flowexternal, above=0.3cm of vault] (oracle) {Risk\\Oracle};
   \node[flowexternal, below=0.3cm of vault] (registry) {Revocation\\Registry};
 
   % peaq pallets
   \node[flowexternal, below=1.2cm of registry, minimum width=3.4cm] (pallets) {peaqDid\\peaqRbac\\peaqStorage};
 
   % external readers
-  \node[flowblock, right=of oracle, minimum width=2.4cm, fill=notebg, draw=noteborder] (insurer) {Insurance\\underwriter};
-  \node[flowblock, right=of vault, minimum width=2.4cm, fill=notebg, draw=noteborder] (regulator) {Regulator\\(NTSA)};
-  \node[flowblock, right=of registry, minimum width=2.4cm, fill=notebg, draw=noteborder] (financier) {Financier\\(lender)};
+  \node[flowblock, right=of oracle, minimum width=2.4cm, fill=notebg, draw=noteborder] (insurer) {Insurer};
+  \node[flowblock, right=of vault, minimum width=2.4cm, fill=notebg, draw=noteborder] (regulator) {Regulator};
+  \node[flowblock, right=of registry, minimum width=2.4cm, fill=notebg, draw=noteborder] (financier) {Lender};
 
   % arrows AXI -> hub
   \draw[flowarrow] (cloud.east) -- (hub.west);
@@ -613,9 +617,9 @@ NTSA's portal goes down regularly. Our chain does not. Plus: insurance firms out
 \subsection{Three flows, every day}
 
 \begin{itemize}[leftmargin=*]
-  \item \textbf{Daily Merkle anchor (00:00 UTC)} --- Convex cron walks the audit log, builds a Merkle tree, anchors the root on peaq mainnet (Polygon as fallback). \texttt{peaqscan} and Subscan both show the same root; anyone can pick a random event from yesterday and walk the proof.
-  \item \textbf{Per-event critical hash (live)} --- ATL agent flags a high-risk event; KMS-backed Ed25519 signer submits a tx to peaq; case UI shows a verified pill within seconds.
-  \item \textbf{Public verification (on demand)} --- \texttt{verify.aximobility.com/api/verify/[hash]} returns a Merkle proof; verifier walks the proof against peaq directly. No trust in AXI required.
+  \item \textbf{Daily summary at midnight UTC} --- AXI builds one fingerprint of the day's events and posts it to peaq (and to Polygon as backup). Anyone can pick a random event from yesterday and prove it was in that summary.
+  \item \textbf{Per-event signing (live)} --- when an AI agent flags a serious event, the AXI backend signs it with a hardware-backed key and posts the proof to peaq within seconds. The case UI shows a "verified" badge.
+  \item \textbf{Public verification (anytime)} --- \texttt{verify.aximobility.com/api/verify/[hash]} returns proof anyone can check against peaq directly. No trust in AXI needed.
 \end{itemize}
 
 % ============================================================
@@ -628,19 +632,19 @@ NTSA's portal goes down regularly. Our chain does not. Plus: insurance firms out
 \toprule
 {\bfseries\color{axiprimary}peaq feature} & {\bfseries\color{axiprimary}How AXI uses it} & {\bfseries\color{axiprimary}Frequency} \\
 \midrule
-EVM smart contracts & 3 production contracts (Vault, Oracle, Registry) & 1--10$\times$/day \\
+Smart contracts & The 3 contracts above (Oracle, Vault, Registry) & 1-10x/day \\
 \addlinespace[2pt]
-\texttt{peaqDid} pallet & DID issuance per vehicle, driver, asset & \textasciitilde 50/day pilot \\
+\texttt{peaqDid} & A unique identity per vehicle, driver, and asset & \textasciitilde 50/day in pilot \\
 \addlinespace[2pt]
-\texttt{peaqRbac} pallet & Cross-tenant role assignments (issuer, attestor, approver) & per role change \\
+\texttt{peaqRbac} & Roles for issuers, signers, approvers, auditors & per role change \\
 \addlinespace[2pt]
-\texttt{peaqStorage} pallet & Selective evidence storage (compliance binders) & monthly \\
+\texttt{peaqStorage} & Storing compliance evidence we can re-fetch later & monthly \\
 \addlinespace[2pt]
-EVM precompiles & viem-compatible \texttt{defineChain} + standard tooling & every chain call \\
+EVM compatibility & Standard Solidity tooling works out of the box & every call \\
 \addlinespace[2pt]
-Mainnet RPC & Daily anchor + per-event critical hash & continuous \\
+Mainnet RPC & Daily summary + live event signing & continuous \\
 \addlinespace[2pt]
-Agung testnet & Pre-mainnet integration testing & continuous in CI \\
+Agung testnet & Where we test before shipping to mainnet & continuous \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -656,31 +660,31 @@ Agung testnet & Pre-mainnet integration testing & continuous in CI \\
 \toprule
 {\bfseries\color{axiprimary}Date} & {\bfseries\color{axiprimary}Milestone} & {\bfseries\color{axiprimary}Status} \\
 \midrule
-2026-04 & Lock peaq as primary chain (Polygon as fallback) --- strategic decision in \texttt{POSITIONING.md} & \statusdone \\
+2026-04 & Locked peaq as our main chain (Polygon as backup) & \statusdone \\
 \addlinespace[2pt]
-2026-04 & Verified 34 peaq facts + flagged 7 open questions in \texttt{VERIFIED\_SPECS.md} & \statusdone \\
+2026-04 & Verified 34 facts about peaq, flagged 7 open questions for the team & \statusdone \\
 \addlinespace[2pt]
-2026-04 & Built TypeScript integration: EVM client (viem), Substrate client, DID issuer/resolver, RBAC + Storage pallet wrappers, KMS-Ed25519 signers, idempotency, retry, structured logger & \statusdone \\
+2026-04 & Built the TypeScript library: identity, roles, storage, signing, retries, logging & \statusdone \\
 \addlinespace[2pt]
-2026-04 & Built standalone \texttt{peaq-cli} ops tool with 5 command groups (anchor, did, storage, health, status) & \statusdone \\
+2026-04 & Built a command-line tool with 5 command groups (anchor, did, storage, health, status) & \statusdone \\
 \addlinespace[2pt]
-2026-04 & Wrote 3 production-shape Solidity contracts with UUPS, OZ AccessControl, custom errors, NatSpec & \statusdone \\
+2026-04 & Wrote 3 production-shape smart contracts with role-based access and clear error messages & \statusdone \\
 \addlinespace[2pt]
-2026-04 & 51 unit + fuzz tests passing on local Foundry harness & \statusdone \\
+2026-04 & 51 tests passing on the local test setup & \statusdone \\
 \addlinespace[2pt]
-2026-05 & Slither in CI severity-gated to high; \texttt{forge fmt} + snapshot in CI & \statusdone \\
+2026-05 & Security scanner running in CI on every change & \statusdone \\
 \addlinespace[2pt]
-2026-05 & Agung deploy dry-run successful (chain ID 9990) & \statusdone \\
+2026-05 & Agung dry-run deploy successful & \statusdone \\
 \addlinespace[2pt]
-2026-05 & \texttt{AUDIT\_CHECKLIST.md} (about 80\% items closed) & \statusdone \\
+2026-05 & Pre-audit checklist about 80\% complete & \statusdone \\
 \addlinespace[2pt]
-2026-05 & \texttt{AGUNG\_DEPLOY.md} 25-minute zero-to-first-attestation runbook & \statusdone \\
+2026-05 & Step-by-step deploy guide (25 minutes from zero to first signed event) & \statusdone \\
 \addlinespace[2pt]
-2026-05 & Per-contract STRIDE threat models published in \texttt{threat-models/} & \statusdone \\
+2026-05 & Per-contract security analysis published & \statusdone \\
 \addlinespace[2pt]
-2026-05 & \texttt{SECURITY.md} responsible disclosure policy & \statusdone \\
+2026-05 & Responsible disclosure policy published & \statusdone \\
 \addlinespace[2pt]
-2026-05 & \texttt{PEAQ\_REVIEW.md} hand-off packet for peaq tech team & \statusdone \\
+2026-05 & Technical review packet for the peaq tech team & \statusdone \\
 \addlinespace[2pt]
 2026-05 & This milestone document & \statusdone \\
 \bottomrule
@@ -707,12 +711,12 @@ Agung testnet & Pre-mainnet integration testing & continuous in CI \\
   }
 
   % Milestones above timeline
-  \node[flowaccent, anchor=south, minimum width=2.4cm, minimum height=1cm, font=\scriptsize] at (1.25,0.4) {Production\\Agung deploy};
-  \node[flowaccent, anchor=south, minimum width=2.4cm, minimum height=1cm, font=\scriptsize] at (3.75,0.4) {Pilot launch\\10 ROAM bikes};
-  \node[flowaccent, anchor=south, minimum width=2.4cm, minimum height=1cm, font=\scriptsize] at (6.25,0.4) {External audit\\engagement};
-  \node[flowaccent, anchor=south, minimum width=2.4cm, minimum height=1cm, font=\scriptsize] at (8.75,0.4) {Audit complete\\+ remediation};
-  \node[flowaccent, anchor=south, minimum width=2.4cm, minimum height=1cm, font=\scriptsize] at (11.25,0.4) {peaq mainnet\\promote};
-  \node[flowaccent, anchor=south, minimum width=2.4cm, minimum height=1cm, font=\scriptsize] at (13.75,0.4) {First external\\customer};
+  \node[flowaccent, anchor=south, minimum width=2.4cm, minimum height=1cm, font=\scriptsize] at (1.25,0.4) {Agung\\production};
+  \node[flowaccent, anchor=south, minimum width=2.4cm, minimum height=1cm, font=\scriptsize] at (3.75,0.4) {Pilot launch\\10 bikes};
+  \node[flowaccent, anchor=south, minimum width=2.4cm, minimum height=1cm, font=\scriptsize] at (6.25,0.4) {Hire\\auditor};
+  \node[flowaccent, anchor=south, minimum width=2.4cm, minimum height=1cm, font=\scriptsize] at (8.75,0.4) {Audit\\done};
+  \node[flowaccent, anchor=south, minimum width=2.4cm, minimum height=1cm, font=\scriptsize] at (11.25,0.4) {Mainnet\\go-live};
+  \node[flowaccent, anchor=south, minimum width=2.4cm, minimum height=1cm, font=\scriptsize] at (13.75,0.4) {First outside\\customer};
 \end{tikzpicture}
 }
 \end{center}
@@ -724,21 +728,21 @@ Agung testnet & Pre-mainnet integration testing & continuous in CI \\
 \toprule
 {\bfseries\color{axiprimary}Milestone} & {\bfseries\color{axiprimary}When} & {\bfseries\color{axiprimary}What it unlocks} \\
 \midrule
-Production Agung deploy & Week 1 & Live testing against real Agung; pilot can chain-anchor daily \\
+Production Agung deploy & Week 1 & Live testing on real Agung; pilot can sign daily \\
 \addlinespace[2pt]
-Internal pilot launch & Week 2 & First chain anchor, first risk attestation, first revocation \\
+Internal pilot launch & Week 2 & First daily summary, first risk score, first cancellation \\
 \addlinespace[2pt]
-External audit engagement & Week 3--4 & Lock contracts, tag \texttt{audit-v1} \\
+Hire external auditor & Week 3-4 & Freeze contracts for audit \\
 \addlinespace[2pt]
-Audit + remediation & Week 4--8 & Gate to mainnet \\
+Audit + fix findings & Week 4-8 & Last gate before mainnet \\
 \addlinespace[2pt]
-peaq mainnet promote & Month 2 & Daily anchor live, Safe 4-of-7 multisig admin \\
+Go live on peaq mainnet & Month 2 & Daily summary live, multi-sig wallet in charge \\
 \addlinespace[2pt]
-First external customer & Month 3 & Same platform, different ontology \\
+First outside customer & Month 3 & Same platform, different fleet type \\
 \addlinespace[2pt]
-Bug bounty live & Month 3 & Phase 5 gate per \texttt{EXECUTION\_ORDER.md} \\
+Bug bounty open & Month 3 & Public security testing \\
 \addlinespace[2pt]
-First sovereign customer deploy & Month 6+ & Atlas Sovereign K2 LoRA on AWS GPU \\
+First customer on dedicated infra & Month 6+ & Their own AI hardware \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -747,66 +751,64 @@ First sovereign customer deploy & Month 6+ & Atlas Sovereign K2 LoRA on AWS GPU 
 % ASKS
 % ============================================================
 \newpage
-\section{What we'd love from the peaq team}
+\section{What we need from the peaq team}
 
-\subsection{Direct answers to seven unverified questions}
+\subsection{Answers to seven open questions}
 
-These come from \texttt{VERIFIED\_SPECS.md}. We want to publish answers in that file as "verified, source: peaq team confirmation".
-
-\begin{infobox}[title=Capacity + economics]
+\begin{infobox}[title=Cost + capacity]
 \begin{enumerate}[leftmargin=*, nosep]
-  \item \textbf{Exact extrinsic fees.} Cost of \texttt{peaqDid.addAttribute} and \texttt{peaqStorage.addItem} in PEAQ + USD?
-  \item \textbf{DePIN bulk-write pricing.} Is there a tier for high-frequency writes? At ROAM Phase 4 ($\sim$10{,}000 vehicles), we will write 10--100 events per second.
+  \item \textbf{Exact transaction fees.} What does it cost to add an identity attribute or store an item, in PEAQ tokens and USD?
+  \item \textbf{Bulk-write pricing.} Is there a discount tier for high-frequency writes? At full scale (about 10{,}000 vehicles) we will write 10-100 events per second.
 \end{enumerate}
 \end{infobox}
 
-\begin{infobox}[title=Compliance + identity]
+\begin{infobox}[title=Identity standards]
 \begin{enumerate}[leftmargin=*, nosep, start=3]
-  \item \textbf{W3C JSON-LD VC compliance.} Does peaq DID resolve correctly inside W3C VC libraries? The insurance arbitrage thesis depends on insurers consuming our DIDs in their existing tooling.
+  \item \textbf{Standard library compatibility.} Do peaq identities work inside the standard W3C verifiable-credential libraries that insurers already use? This is critical for them to consume our identities directly.
 \end{enumerate}
 \end{infobox}
 
 \begin{infobox}[title=Network safety]
 \begin{enumerate}[leftmargin=*, nosep, start=4]
-  \item \textbf{Decentralisation metrics.} Validators and collators count, geographic distribution, nakamoto coefficient.
-  \item \textbf{Major incidents and forks since mainnet launch.} For our risk model.
-  \item \textbf{KREST $\rightarrow$ PEAQ migration plan.} What is the canary network policy? Is there guidance for partners?
+  \item \textbf{Decentralisation numbers.} Validator count, where they are located, how concentrated voting power is.
+  \item \textbf{Major incidents since launch.} Forks or outages we should know about for our risk model.
+  \item \textbf{KREST to PEAQ migration plan.} What is the guidance for partners building on the network now?
 \end{enumerate}
 \end{infobox}
 
 \begin{infobox}[title=Tooling]
 \begin{enumerate}[leftmargin=*, nosep, start=7]
-  \item \textbf{Official viem chain definition.} Does peaq plan to ship one? We are synthesising via \texttt{defineChain} today.
+  \item \textbf{Official chain definition for viem.} Are you planning to ship one? We are building our own today.
 \end{enumerate}
 \end{infobox}
 
 \subsection{Code review}
 
 \begin{itemize}[leftmargin=*]
-  \item Validate our \texttt{did:peaq:...} issuer and resolver against the spec repo.
-  \item Validate our pallet wrapper code (storage and RBAC).
-  \item Spot-check the EVM contracts; flag anything peaq has seen go wrong in other DePIN deployments.
+  \item Check our identity issuer and resolver against your spec.
+  \item Check our pallet wrapper code (storage and roles).
+  \item Spot-check our smart contracts for anything you have seen go wrong elsewhere.
 \end{itemize}
 
-\subsection{Mainnet promotion guidance}
+\subsection{Help with going to mainnet}
 
 \begin{itemize}[leftmargin=*]
-  \item Preferred audit firm list? (We are considering Trail of Bits, OpenZeppelin, Halborn, Sigma Prime.)
-  \item Monitoring requirements before a partner goes mainnet?
-  \item Multisig setup recommendations? (Safe on peaq EVM is the path; signers + threshold.)
-  \item Public launch playbook --- does peaq announce and amplify partner mainnet launches?
+  \item Which audit firms do you recommend? (We are considering Trail of Bits, OpenZeppelin, Halborn, Sigma Prime.)
+  \item What monitoring should we have in place before going live?
+  \item Multi-sig wallet setup recommendations (signers, threshold).
+  \item Does peaq announce partner mainnet launches publicly?
 \end{itemize}
 
-\subsection{Partnership amplification}
+\subsection{Joint marketing}
 
 \begin{itemize}[leftmargin=*]
-  \item Co-marketing for the ROAM mainnet promote --- joint announcement with ROAM and a peaq team blog post.
-  \item DePIN ecosystem listing --- list AXI Mobility on peaq's DePIN partners page.
-  \item Reference architecture write-up --- happy to contribute a "how AXI uses peaq" reference for other DePIN partners.
+  \item Joint announcement when we go live with ROAM (blog post + social).
+  \item Listing on peaq's partners page.
+  \item Reference write-up: we are happy to publish "how AXI uses peaq" as a guide for other partners.
 \end{itemize}
 
 \begin{warningbox}[title=Time-sensitive]
-The ROAM internal pilot launches in 2 weeks. We want to land on Agung mainnet for daily anchor before then. A 1-hour kickoff call this week unblocks our timeline. Reply to \href{mailto:team@aximobility.com}{team@aximobility.com}.
+The ROAM pilot launches in 2 weeks. We want our daily summary running on Agung before then. A 1-hour call this week unblocks the timeline. Email us at \href{mailto:team@aximobility.com}{team@aximobility.com}.
 \end{warningbox}
 
 % ============================================================
@@ -818,19 +820,19 @@ The ROAM internal pilot launches in 2 weeks. We want to land on Agung mainnet fo
 \subsection{For the peaq team}
 
 \begin{enumerate}[leftmargin=*]
-  \item Read this milestone document (15-minute scan).
-  \item Read \texttt{PEAQ\_REVIEW.md} in the repo if you want technical depth (90-minute deep dive).
-  \item Reply to \href{mailto:team@aximobility.com}{team@aximobility.com} with availability for a 1-hour kickoff call this week.
-  \item Send written answers to the seven questions in section 7.1, or come ready to discuss them on the call.
+  \item Read this document (15-minute scan).
+  \item If you want more technical depth, read \texttt{PEAQ\_REVIEW.md} in the repo (about 90 minutes).
+  \item Reply to \href{mailto:team@aximobility.com}{team@aximobility.com} with availability for a 1-hour call this week.
+  \item Send written answers to the 7 open questions, or come ready to discuss them on the call.
 \end{enumerate}
 
 \subsection{For AXI (in parallel)}
 
 \begin{itemize}[leftmargin=*]
-  \item Production Agung deploy with funded EOA + multisig admin.
-  \item Close the remaining 20\% of \texttt{AUDIT\_CHECKLIST.md} (Echidna, branch coverage, mutation testing).
-  \item Engage external audit firm (preference among Trail of Bits, OpenZeppelin, Halborn, Sigma Prime --- pending peaq team's recommendation).
-  \item Tag \texttt{audit-v1} freeze commit before audit kickoff.
+  \item Deploy to production Agung with a funded wallet and multi-sig admin.
+  \item Close the last 20\% of the pre-audit checklist (extra automated tests, more coverage).
+  \item Hire an external audit firm (we are picking from Trail of Bits, OpenZeppelin, Halborn, Sigma Prime, pending peaq's recommendation).
+  \item Freeze the contracts and tag the commit before the audit starts.
 \end{itemize}
 
 \subsection{Repository links}
@@ -853,14 +855,14 @@ The ROAM internal pilot launches in 2 weeks. We want to land on Agung mainnet fo
 \toprule
 {\bfseries\color{axiprimary}File} & {\bfseries\color{axiprimary}Purpose} \\
 \midrule
-This document & Partnership-facing milestone update (you are here) \\
-\texttt{MILESTONES.md} & Same content, GitHub-rendered Markdown \\
-\texttt{PEAQ\_REVIEW.md} & 13-section technical review packet \\
-\texttt{AUDIT\_CHECKLIST.md} & Pre-audit hardening status (\textasciitilde 80\% closed) \\
-\texttt{AGUNG\_DEPLOY.md} & 25-minute step-by-step deploy walkthrough \\
-\texttt{SECURITY.md} & Responsible disclosure policy \\
-\texttt{threat-models/*.STRIDE.md} & Per-contract STRIDE + DREAD analysis \\
-\texttt{VERIFIED\_SPECS.md} & 34 verified peaq facts + 7 open questions \\
+This document & Milestone update for the peaq team (you are reading it) \\
+\texttt{MILESTONES.md} & Same content, in plain Markdown for GitHub \\
+\texttt{PEAQ\_REVIEW.md} & The technical deep-dive (13 sections) \\
+\texttt{AUDIT\_CHECKLIST.md} & Pre-audit checklist (about 80\% complete) \\
+\texttt{AGUNG\_DEPLOY.md} & Step-by-step deploy guide (25 minutes start to finish) \\
+\texttt{SECURITY.md} & How to report a security issue \\
+\texttt{threat-models/} & Per-contract security analysis \\
+\texttt{VERIFIED\_SPECS.md} & 34 verified facts about peaq + the 7 open questions \\
 \bottomrule
 \end{tabular}
 \end{center}

@@ -54,9 +54,9 @@ Each contract solves a real problem we ran into during the ROAM pilot design.
 
 ```
 ROAM rider Mary Akinyi, 6 months riding, 4,200 km, 0 harsh-brake events,
-89% safety score. AXI attestor signs:
-  attest(did:peaq:mary, score=920, expiresAt=now+30d, payloadHash=0x...)
-→ Insurer reads getLatest(did:peaq:mary) → score 920 → premium discount tier 1.
+89% safety score. AXI attestor calls:
+  attest(vehicleDid=mary, score=920, anchorRoot=0x..., sampleSizeKm=4200)
+→ Insurer calls riskScore(mary) → (920, attestedAt) → premium discount tier 1.
 ```
 
 **Why peaq vs centralised database.** Insurers won't trust AXI's database (we're an interested party). They'll trust an on-chain attestation log signed by independent attestors. The chain gives them deniability ("we relied on a public register").
@@ -119,7 +119,7 @@ not jailed for "fraudulent docs". Saves AXI a court date.
                        │                                   │
    Driver app ─────────┘                                   ├─ HighRiskCommandVault   (K-of-M)
                                                            ├─ InsuranceRiskOracle    (append-only)
-                                                           ├─ CredentialRevocationRegistry (per-issuer)
+                                                           ├─ CredentialRevocationRegistry (role-gated)
                                                            │
                                                            └─ peaqDid / peaqRbac / peaqStorage pallets
 ```
@@ -176,7 +176,7 @@ Insurance underwriter has a fleet's risk-attestation hash. They call our `verify
 | 2026-04 | 51 unit + fuzz tests passing on local Foundry harness | ✅ |
 | 2026-05 | Slither in CI, severity-gated to high | ✅ |
 | 2026-05 | Forge fmt + snapshot + verify scripts | ✅ |
-| 2026-05 | Agung deploy dry-run successful (chain ID 9990) | ✅ |
+| 2026-05 | Deploy script validated against local Anvil fork of Agung (chain ID 9990) | ✅ |
 | 2026-05 | Wrote `AUDIT_CHECKLIST.md` (~80% items closed) | ✅ |
 | 2026-05 | Wrote `AGUNG_DEPLOY.md` (25-min zero-to-first-attestation runbook) | ✅ |
 | 2026-05 | Wrote per-contract STRIDE threat models | ✅ |

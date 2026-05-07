@@ -17,6 +17,7 @@ interface ICredentialRevocationRegistry {
     error AlreadyRevoked(bytes32 credentialHash);
     error NotRevoked(bytes32 credentialHash);
     error EmptyCredentialHash();
+    error BatchTooLarge(uint256 provided, uint256 max);
 
     function revoke(bytes32 credentialHash, bytes32 reasonCode) external;
     function revokeBatch(bytes32[] calldata credentialHashes, bytes32 reasonCode) external;

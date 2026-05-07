@@ -26,7 +26,7 @@
 
 | Threat | Surface | Likelihood | Impact | Mitigation |
 |---|---|---|---|---|
-| Caller spoofs ISSUER_ROLE | `revoke()` | low | high | OZ AccessControl + per-issuer scope (only the issuer of a credential can revoke it) — enforced via internal mapping `credentialIssuer[hash]` |
+| Caller spoofs ISSUER_ROLE | `revoke()` | low | high | OZ AccessControl. Any address with `ISSUER_ROLE` can revoke any credential; `revokedBy` is recorded on-chain for accountability. Phase 5 enhancement: per-credential issuer scope (track issuer at registration time, restrict revoke to that issuer). |
 | Caller spoofs PAUSER_ROLE | `pause()` | low | medium | AccessControl |
 | EOA replays a captured `revoke()` tx | mempool | low | low (idempotent re-revoke reverts) | `AlreadyRevoked` custom error preserves earlier `reasonCode` |
 
@@ -49,8 +49,8 @@
 
 | Threat | Surface | Likelihood | Impact | Mitigation |
 |---|---|---|---|---|
-| Revoker identity public | `metadata().revoker` | by design | n/a | Public revoker is a feature for compliance audit |
-| Reason code public | `metadata().reasonCode` | by design | n/a | Public reasonCode is required for insurance underwriter consumption |
+| Revoker identity public | `whyRevoked().revokedBy` | by design | n/a | Public revoker is a feature for compliance audit |
+| Reason code public | `whyRevoked().reasonCode` | by design | n/a | Public reasonCode is required for insurance underwriter consumption |
 | Credential hash leaks PII | hash content | low | medium | Hash is keccak256 of credential payload; no preimage on-chain. Operators must not put PII in the hash input. Documented in OPS_RUNBOOK. |
 
 ### D — Denial of service
@@ -85,7 +85,7 @@ Top risks: UUPS storage collision + UPGRADER role compromise. Both mitigated by 
 ## Open issues for the audit firm
 
 1. Should `revokeBatch` enforce on-chain `MAX_BATCH_SIZE` rather than rely on documentation? Recommend yes; cheap to add.
-2. Should `metadata()` redact revoker identity for non-issuer queries? **No** — reveals revoker is a compliance feature.
+2. Should `whyRevoked()` redact revoker identity for non-issuer queries? **No** — reveals revoker is a compliance feature.
 3. Should `pause()` automatically expire after N days to prevent forever-paused state? Discuss; lean toward yes with 30d auto-unpause.
 4. Should we add a `setIssuer(hash, issuer)` admin escape hatch for misconfigured issuance? Lean toward yes for Phase 1; remove in Phase 5.
 

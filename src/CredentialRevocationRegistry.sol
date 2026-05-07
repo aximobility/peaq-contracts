@@ -27,8 +27,17 @@ contract CredentialRevocationRegistry is
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
     bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
 
+    /// @notice Hard cap on revokeBatch size. Prevents issuer-key compromise from
+    ///         griefing the chain via a single jumbo tx.
+    uint256 public constant MAX_BATCH_SIZE = 100;
+
     mapping(bytes32 => RevocationRecord) private _records;
     uint256 private _totalRevoked;
+
+    /// @dev Reserved storage slots for upgrade safety. See OZ docs on namespaced
+    ///      storage + storage layout. Append new state variables BEFORE __gap
+    ///      and decrement the array length accordingly.
+    uint256[48] private __gap;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -86,6 +95,7 @@ contract CredentialRevocationRegistry is
         onlyRole(ISSUER_ROLE)
     {
         uint256 len = credentialHashes.length;
+        if (len > MAX_BATCH_SIZE) revert BatchTooLarge(len, MAX_BATCH_SIZE);
         uint256 newlyRevoked;
         for (uint256 i; i < len;) {
             bytes32 ch = credentialHashes[i];

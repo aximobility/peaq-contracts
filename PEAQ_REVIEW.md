@@ -39,37 +39,29 @@ Both Apache-2.0. Both pnpm-monorepo style.
 
 #### CredentialRevocationRegistry
 - **Use case:** Revocable W3C VCs for driver licenses, NTSA inspections, insurance binders. Insurance underwriters check this before quoting. Regulators verify here.
-- **API surface:** `revoke(hash, reasonCode)` · `revokeBatch(hashes[], reasonCode)` (bounded 100/batch) · `isRevoked(hash) → bool` · `metadata(hash) → (revokedAt, revoker, reasonCode)`
-- **Roles:** `DEFAULT_ADMIN_ROLE` · `ISSUER_ROLE` (per-issuer scope; only issuers of a credential can revoke it) · `PAUSER_ROLE`
-- **Replay safety:** idempotent re-revoke reverts to preserve earlier `reasonCode` (immutable history)
+- **API surface:** `revoke(credentialHash, reasonCode)` · `revokeBatch(credentialHashes[], reasonCode)` (hard cap `MAX_BATCH_SIZE = 100` enforced on-chain) · `unrevoke(credentialHash)` (admin-only emergency undo) · `isRevoked(credentialHash) → bool` · `whyRevoked(credentialHash) → RevocationRecord` (returns `revoked, revokedAt, reasonCode, revokedBy`) · `totalRevoked() → uint256`
+- **Roles:** `DEFAULT_ADMIN_ROLE` · `ISSUER_ROLE` (any issuer with the role can revoke any credential; the on-chain `revokedBy` address records who did it) · `PAUSER_ROLE` · `UPGRADER_ROLE`
+- **Replay safety:** idempotent re-revoke reverts to preserve earlier `reasonCode` (append-only history)
 
 #### HighRiskCommandVault
-- **Use case:** K-of-M approval for fleet-wide commands (lock 47 vehicles simultaneously, mass route override, broadcast >100 messages). Required by `apps/admin/ADMIN_DATA_HANDLING.md` governance.
-- **API surface:** `propose(commandType, targetDid, payloadHash, K, M, expiresAt) → commandId` · `approve(commandId)` · `execute(commandId, payload)` (permissionless once K reached) · `cancel(commandId)` · `markExpired(commandId)`
-- **State machine:** `Proposed → Approved → Executed` (Approved/Executed terminal). `Cancelled` + `Expired` also terminal.
-- **Roles:** `DEFAULT_ADMIN_ROLE` · `PROPOSER_ROLE` · `APPROVER_ROLE` · `PAUSER_ROLE`
-- **Replay safety:** `commandId = keccak256(commandType, targetDid, payloadHash, K, M, nowTs, proposer)` — same proposer + identical args in the same block reverts
-- **MEV note:** `execute()` is permissionless once K reached, so an attacker could front-run our executor. **Not a value-extraction attack** (no funds in vault) but documented.
+- **Use case:** K-of-M approval for fleet-wide commands (lock 47 vehicles simultaneously, mass route override, broadcast >100 messages). Required by AXI governance policy.
+- **API surface:** `propose(commandType, targetDid, payloadHash, K, M, expirySeconds) → commandId` · `approve(commandId)` · `execute(commandId, payload)` (permissionless once K reached) · `cancel(commandId)` (proposer only) · `markExpired(commandId)` (anyone, post-expiry)
+- **State machine:** `Proposed → Approved → Executed`. `Cancelled` and `Expired` are also terminal. No backwards transitions.
+- **Roles:** `DEFAULT_ADMIN_ROLE` · `PROPOSER_ROLE` · `APPROVER_ROLE` · `PAUSER_ROLE`. Vault is **not upgradeable** (deliberate — see `threat-models/HighRiskCommandVault.STRIDE.md`).
+- **Replay safety:** `commandId = keccak256(commandType, targetDid, payloadHash, K, M, nowTs, proposer)` — same proposer + identical args in the same block reverts with `CommandAlreadyExists`
+- **MEV note:** `execute()` is permissionless once K reached, so anyone (including a regulator) can run it. **Not a value-extraction attack** (no funds in vault) but documented.
 
 #### InsuranceRiskOracle
-- **Use case:** Append-only risk attestation log per DID. Insurance underwriters consume this when quoting premiums. Insurance arbitrage's verifiable underwriting input.
-- **API surface:** `attest(did, score, expiresAt, payloadHash) → attestationId` · `getLatest(did) → Attestation` · `getHistory(did, limit, offset) → Attestation[]` · `markExpired(attestationId)`
-- **Constraints:** score `0..1000` · expiry window `60s..30d` · DID non-zero
-- **Roles:** `DEFAULT_ADMIN_ROLE` · `ATTESTOR_ROLE` · `PAUSER_ROLE`
+- **Use case:** Append-only risk attestation log per vehicle DID. Insurance underwriters consume this when quoting premiums.
+- **API surface:** `attest(vehicleDid, score, anchorRoot, sampleSizeKm)` (returns void; emits `RiskAttested`) · `riskScore(vehicleDid) → (score, attestedAt)` (reverts if no attestation or older than `maxAttestationAgeSeconds`) · `priceMultiplierBps(vehicleDid) → uint16` · `latestAttestation(vehicleDid) → RiskAttestation` · `attestationCount(vehicleDid) → uint256` · `attestationAt(vehicleDid, index) → RiskAttestation` · admin: `recalibrate(floorBps, ceilingBps)` · `setMaxAttestationAge(maxAgeSeconds)` (emits `MaxAttestationAgeUpdated`)
+- **Constraints:** score `0..MAX_SCORE` (1000) · staleness rejected by `riskScore()` after `maxAttestationAgeSeconds` · `vehicleDid` and `anchorRoot` non-zero
+- **Roles:** `DEFAULT_ADMIN_ROLE` · `ATTESTOR_ROLE` · `CALIBRATOR_ROLE` · `PAUSER_ROLE` · `UPGRADER_ROLE`
 
-### 3.2 Agung testnet deployment (chain ID 9990)
+### 3.2 Deployment status
 
-Per `broadcast/Deploy.s.sol/9990/run-latest.json`:
+The deploy script (`script/Deploy.s.sol`) has been exercised against a **local Anvil fork of Agung** for end-to-end CI validation. The artifact at `broadcast/Deploy.s.sol/9990/run-latest.json` is from that local fork run — the deployer is the Anvil default account `0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266` and the contract addresses are the deterministic Anvil first-deploy slots (not real Agung addresses).
 
-| Contract | Address | Role |
-|---|---|---|
-| `CredentialRevocationRegistry` (impl) | `0x5fbdb2315678afecb367f032d93f642f64180aa3` | implementation |
-| `CredentialRevocationRegistry` (proxy) | `0xe7f1725e7734ce288f8367e1bb143e90bb3f0512` | UUPS ERC1967 proxy |
-| `InsuranceRiskOracle` (impl) | `0x9fe46736679d2d9a65f0992f2272de9f3c7fa6e0` | implementation |
-| `InsuranceRiskOracle` (proxy) | `0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9` | UUPS proxy |
-| `HighRiskCommandVault` (impl) | `0xdc64a140aa3e981100a9beca4e685f962f0cf6c9` | implementation |
-
-> **Note:** Addresses above are from the deploy run record. We will refresh this section with **verified addresses on peaqscan + Subscan** before sending to peaq team. Current deploy was a CI dry-run; production Agung deploy will use a fresh deployer EOA + Safe multisig admin.
+A real Agung deploy with a fresh funded EOA + Safe multisig admin is the next step before mainnet. We will publish the verified addresses on peaqscan + Subscan in this section once that lands.
 
 ### 3.3 Foundry harness
 
@@ -247,11 +239,11 @@ Full per-contract threat model docs in `peaq-contracts/threat-models/{Contract}.
 
 | Threat | Surface | Mitigation |
 |---|---|---|
-| **Spoofing** issuer | `revoke()` callable by ISSUER_ROLE only | Per-issuer scope (only issuer of a credential can revoke it) + AccessControl |
+| **Spoofing** issuer | `revoke()` callable by `ISSUER_ROLE` only | OZ AccessControl + revocable role + multisig DEFAULT_ADMIN |
 | **Tampering** revocation | Append-only state, idempotent re-revoke reverts | Custom error `AlreadyRevoked` preserves earlier `reasonCode` |
-| **Repudiation** of revocation | Every revoke emits event + on-chain state immutable | Audit trail + event indexing |
-| **Info disclosure** | `metadata()` returns revoker address — known | Acceptable; revoker identity is a feature |
-| **DoS** via batch | `revokeBatch()` capped at 100 entries | Documented max + caller-bounded |
+| **Repudiation** of revocation | Every revoke emits event with `revokedBy` address | Audit trail + event indexing |
+| **Info disclosure** | `whyRevoked()` returns revoker address — known | Acceptable; revoker identity is a feature |
+| **DoS** via batch | `revokeBatch()` enforces on-chain `MAX_BATCH_SIZE = 100` | Hard cap reverts with `BatchTooLarge` |
 | **Elevation** of privilege | UPGRADER_ROLE separated from DEFAULT_ADMIN_ROLE | UUPS upgrade requires UPGRADER + 4-of-7 multisig |
 
 ### HighRiskCommandVault — top STRIDE risks
@@ -274,7 +266,7 @@ Full per-contract threat model docs in `peaq-contracts/threat-models/{Contract}.
 | **Tampering** history | Append-only; `attest()` always inserts new row | No state mutation; immutable history |
 | **Repudiation** | Each attestation emits event + indexed by DID | On-chain log |
 | **Info disclosure** | Risk scores public on-chain — by design | Insurance underwriters consume the public log |
-| **DoS** via spam | Score range checked, expiry window bounded | Custom errors `OutOfRange` + `BadExpiry` |
+| **DoS** via spam | Score range `0..MAX_SCORE` enforced; staleness rejected by `riskScore()` | Custom errors `InvalidScore` + `AttestationTooStale` |
 | **Elevation** | Same UUPS pattern as other contracts | UPGRADER_ROLE + multisig |
 
 ---

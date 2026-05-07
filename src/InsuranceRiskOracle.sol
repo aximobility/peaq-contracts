@@ -44,6 +44,10 @@ contract InsuranceRiskOracle is
     /// @notice Maximum age (seconds) before riskScore() reverts as stale.
     uint64 public maxAttestationAgeSeconds;
 
+    /// @dev Reserved storage slots for upgrade safety. Append new state vars
+    ///      BEFORE __gap and decrement the array length accordingly.
+    uint256[47] private __gap;
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -172,7 +176,9 @@ contract InsuranceRiskOracle is
     }
 
     function setMaxAttestationAge(uint64 maxAgeSeconds) external onlyRole(CALIBRATOR_ROLE) {
+        uint64 previous = maxAttestationAgeSeconds;
         maxAttestationAgeSeconds = maxAgeSeconds;
+        emit MaxAttestationAgeUpdated(previous, maxAgeSeconds, msg.sender);
     }
 
     function pause() external onlyRole(PAUSER_ROLE) {

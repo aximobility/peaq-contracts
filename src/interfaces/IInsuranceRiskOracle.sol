@@ -20,6 +20,7 @@ interface IInsuranceRiskOracle {
     event AttestorAuthorised(address indexed attestor, address indexed grantedBy);
     event AttestorRevoked(address indexed attestor, address indexed revokedBy);
     event ScoreCurveUpdated(uint16 maxScore, uint16 floorMultiplierBps, uint16 ceilingMultiplierBps);
+    event MaxAttestationAgeUpdated(uint64 previousSeconds, uint64 newSeconds, address indexed updatedBy);
 
     error InvalidScore(uint16 score, uint16 maxScore);
     error EmptyVehicleDid();

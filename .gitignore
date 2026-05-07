@@ -26,3 +26,10 @@ Thumbs.db
 # Coverage
 lcov.info
 coverage/
+
+# LaTeX build artifacts
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz

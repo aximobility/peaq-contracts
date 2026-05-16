@@ -53,7 +53,8 @@ contract HighRiskCommandVaultTest is Test {
                     uint8(2),
                     uint8(3),
                     uint64(block.timestamp),
-                    proposer
+                    proposer,
+                    uint256(0) // first propose → nonce 0
                 )
             ),
             CMD_TYPE,
@@ -101,6 +102,20 @@ contract HighRiskCommandVaultTest is Test {
         vm.prank(random);
         vm.expectRevert();
         vault.propose(CMD_TYPE, TARGET_DID, "x", 2, 3, uint64(block.timestamp + 1 hours));
+    }
+
+    function test_Propose_IdenticalCommandsSameBlockGetUniqueIds() public {
+        vm.startPrank(proposer);
+        bytes32 id1 = vault.propose(CMD_TYPE, TARGET_DID, "x", 2, 3, uint64(block.timestamp + 1 hours));
+        bytes32 id2 = vault.propose(CMD_TYPE, TARGET_DID, "x", 2, 3, uint64(block.timestamp + 1 hours));
+        vm.stopPrank();
+        assertTrue(id1 != id2, "nonce must keep identical proposals collision-free");
+    }
+
+    function test_Constructor_RejectsZeroAdmin() public {
+        address[] memory empty = new address[](0);
+        vm.expectRevert(HighRiskCommandVault.ZeroAddress.selector);
+        new HighRiskCommandVault(address(0), empty, empty);
     }
 
     // ---- Approve ----

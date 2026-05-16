@@ -31,6 +31,9 @@ contract CredentialRevocationRegistry is
     ///         griefing the chain via a single jumbo tx.
     uint256 public constant MAX_BATCH_SIZE = 100;
 
+    /// @dev Thrown when a zero address is supplied where a real account is required.
+    error ZeroAddress();
+
     mapping(bytes32 => RevocationRecord) private _records;
     uint256 private _totalRevoked;
 
@@ -45,6 +48,7 @@ contract CredentialRevocationRegistry is
     }
 
     function initialize(address admin, address[] calldata initialIssuers) external initializer {
+        if (admin == address(0)) revert ZeroAddress();
         __AccessControl_init();
         __Pausable_init();
 

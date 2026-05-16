@@ -8,7 +8,7 @@
   <img alt="Foundry" src="https://img.shields.io/badge/built%20with-Foundry-FFCC00">
   <img alt="peaq" src="https://img.shields.io/badge/peaq-mainnet%20%2B%20agung-7B5BFF">
   <img alt="OpenZeppelin v5" src="https://img.shields.io/badge/OpenZeppelin-v5-4E5EE4">
-  <img alt="Tests" src="https://img.shields.io/badge/tests-51%20passing-brightgreen">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-57%20passing-brightgreen">
 </p>
 
 # peaq-contracts
@@ -47,14 +47,14 @@ All three live on **chain ID 3338 (mainnet)** when promoted, **9990 (Agung testn
 
 ## Try it
 
-You need [Foundry](https://book.getfoundry.sh) and a funded Agung wallet. (Need test tokens? Join the peaq Discord and ping `#agung-faucet`.)
+You need [Foundry](https://book.getfoundry.sh) and a funded Agung wallet. (Need test tokens? Use the Agung faucet form on [docs.peaq.xyz](https://docs.peaq.xyz/peaqchain/build/getting-started/get-test-tokens) — 3 AGNG per wallet per day.)
 
 ```bash
 git clone https://github.com/aximobility/peaq-contracts
 cd peaq-contracts
 make install        # Pull OpenZeppelin and forge-std
 make build
-make test           # 51 tests across the three contracts
+make test           # 57 tests across the three contracts
 ```
 
 Deploy to Agung:
@@ -85,7 +85,7 @@ whyRevoked(0xabcd...1234);         // → (timestamp, revoker, REASON_EXPIRED)
 ```
 
 Rules:
-- Only the issuer of a credential can revoke it (per-credential issuer scope).
+- Any address holding `ISSUER_ROLE` can revoke any credential hash — the contract does not scope revocation to the original issuer. The role set is the trust boundary: `DEFAULT_ADMIN_ROLE` (the 4-of-7 multisig) grants and revokes issuers, and is the only role that can `unrevoke`.
 - Re-revoking is rejected so the original reason code stays intact.
 - One transaction can revoke up to 100 credentials at once (handy when an issuer's key gets rotated).
 - The contract has a kill switch (`pause()`) for incidents.
@@ -116,7 +116,7 @@ Rules:
 
 ### HighRiskCommandVault — many approvers, one execution
 
-Some fleet actions are too risky for one person. Locking 47 bikes, broadcasting a message to all riders, pulling funds from the operations account. This contract makes those actions wait for K signatures from M approvers before anyone can execute.
+Some fleet actions are too risky for one person. Locking 47 bikes, broadcasting a message to all riders, pulling funds from the operations account. This contract makes those actions wait for K signatures from M approvers before an authorised executor can run them.
 
 ```solidity
 // 1. AXI ops proposes
@@ -133,14 +133,16 @@ commandId = propose(
 approve(commandId);                   // approver B
 approve(commandId);                   // approver C → status flips to Approved
 
-// 3. Anyone executes (typically AXI's executor cron)
+// 3. An EXECUTOR_ROLE holder executes (AXI's executor cron)
 execute(commandId, <same payload>);
 ```
 
 Rules:
 - The payload bytes are hash-locked at propose time. Execute must present the exact same bytes.
-- Once K signatures hit, anyone can call execute. The vault doesn't gate execution — it gates approval. (If AXI disappears mid-flight, an external operator can still finish the approved action.)
+- Once K signatures hit, the command flips to `Approved`. Execution is then gated to `EXECUTOR_ROLE` holders — `execute()` carries `onlyRole(EXECUTOR_ROLE)`. The K-of-M step is the approval; execution is a single accountable role so payload delivery to the off-chain executor is traceable.
+- `thresholdK` and `totalApprovers` are values the proposer declares. The contract enforces `0 < thresholdK <= totalApprovers` but does **not** bind `totalApprovers` to the live `APPROVER_ROLE` member count — keep them in sync with the real approver set when proposing.
 - Proposals expire. Anyone past expiry can mark the proposal expired (gas-paid by them).
+- Either the proposer or any single `APPROVER_ROLE` holder can `cancel()` a Proposed-or-Approved command — one approver can veto.
 - The contract is **not** upgradeable. An upgradeable approval gate is a back door.
 
 ---
@@ -184,7 +186,7 @@ The 4-of-7 multisig is a Safe wallet on peaq EVM, signed across founders + ops l
 
 ## How we tested
 
-**51 tests passing** across the three contracts. They cover:
+**57 tests passing** across the three contracts. They cover:
 
 - Every public function's happy path.
 - Every error path with a dedicated `Reject*` test.

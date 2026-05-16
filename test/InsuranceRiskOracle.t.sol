@@ -162,6 +162,40 @@ contract InsuranceRiskOracleTest is Test {
         oracle.recalibrate(8000, 14_000);
     }
 
+    function test_Recalibrate_RejectsInvalidCurve() public {
+        vm.startPrank(admin);
+        vm.expectRevert(
+            abi.encodeWithSelector(InsuranceRiskOracle.InvalidCurve.selector, uint16(14_000), uint16(8000))
+        );
+        oracle.recalibrate(14_000, 8000); // floor > ceiling
+        vm.expectRevert(
+            abi.encodeWithSelector(InsuranceRiskOracle.InvalidCurve.selector, uint16(7000), uint16(40_000))
+        );
+        oracle.recalibrate(7000, 40_000); // ceiling above MAX_MULTIPLIER_BPS
+        vm.stopPrank();
+    }
+
+    function test_SetMaxAge_RejectsZero() public {
+        vm.prank(admin);
+        vm.expectRevert(InsuranceRiskOracle.InvalidMaxAge.selector);
+        oracle.setMaxAttestationAge(0);
+    }
+
+    function test_PriceMultiplier_RevertsWhenStale() public {
+        vm.prank(attestor);
+        oracle.attest(VEH_A, 420, ROOT_A, 1850);
+
+        vm.warp(block.timestamp + MAX_AGE + 1);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IInsuranceRiskOracle.AttestationTooStale.selector,
+                uint64(block.timestamp - MAX_AGE - 1),
+                MAX_AGE
+            )
+        );
+        oracle.priceMultiplierBps(VEH_A);
+    }
+
     // ---- Pause ----
 
     function test_Pause_BlocksAttestations() public {

@@ -44,6 +44,14 @@ contract CredentialRevocationRegistryTest is Test {
         reg.initialize(admin, issuers);
     }
 
+    function test_Init_RejectsZeroAdmin() public {
+        CredentialRevocationRegistry impl = new CredentialRevocationRegistry();
+        address[] memory issuers = new address[](0);
+        bytes memory init = abi.encodeCall(CredentialRevocationRegistry.initialize, (address(0), issuers));
+        vm.expectRevert(); // ZeroAddress bubbles out through the proxy constructor
+        new ERC1967Proxy(address(impl), init);
+    }
+
     // ---- Revoke (single) ----
 
     function test_Revoke_HappyPath() public {

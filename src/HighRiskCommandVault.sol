@@ -9,9 +9,9 @@ import {IHighRiskCommandVault} from "./interfaces/IHighRiskCommandVault.sol";
 /// @title HighRiskCommandVault
 /// @notice K-of-M on-chain approval for any AXI command flagged requiresApproval.
 ///         AXI proposes a payload-hash-bound command; K distinct on-chain approvers
-///         each call approve(); once threshold met, anyone can call execute() to
-///         retrieve the payload + emit the canonical event the AXI executor
-///         listens for.
+///         each call approve(); once threshold met an EXECUTOR_ROLE holder calls
+///         execute() to retrieve the payload + emit the canonical event the AXI
+///         executor listens for.
 /// @dev    Intentionally NON-upgradeable. Upgradeable approval logic = trust-loop
 ///         re-entry which defeats the contract's purpose. To change behaviour,
 ///         deploy a new vault, migrate proposers + approvers, deprecate the old
@@ -25,10 +25,18 @@ contract HighRiskCommandVault is AccessControl, Pausable, ReentrancyGuard, IHigh
     uint64 public constant MIN_EXPIRY_WINDOW = 60; // 1 minute
     uint64 public constant MAX_EXPIRY_WINDOW = 30 days;
 
+    /// @dev Thrown when a zero address is supplied where a real account is required.
+    error ZeroAddress();
+
     mapping(bytes32 => Command) private _commands;
     mapping(bytes32 => mapping(address => bool)) private _hasApproved;
 
+    /// @dev Monotonic counter mixed into every commandId so a proposer can submit
+    ///      two otherwise-identical commands (same params, same block) without collision.
+    uint256 private _proposalNonce;
+
     constructor(address admin, address[] memory initialProposers, address[] memory initialApprovers) {
+        if (admin == address(0)) revert ZeroAddress();
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
         _grantRole(PAUSER_ROLE, admin);
 
@@ -70,8 +78,20 @@ contract HighRiskCommandVault is AccessControl, Pausable, ReentrancyGuard, IHigh
 
         bytes32 payloadHash = keccak256(payload);
         commandId = keccak256(
-            abi.encode(commandType, targetDid, payloadHash, thresholdK, totalApprovers, nowTs, msg.sender)
+            abi.encode(
+                commandType,
+                targetDid,
+                payloadHash,
+                thresholdK,
+                totalApprovers,
+                nowTs,
+                msg.sender,
+                _proposalNonce
+            )
         );
+        unchecked {
+            ++_proposalNonce;
+        }
 
         if (_commands[commandId].status != Status.None) revert CommandAlreadyExists(commandId);
 
@@ -117,7 +137,7 @@ contract HighRiskCommandVault is AccessControl, Pausable, ReentrancyGuard, IHigh
 
     /// @notice Execute an approved command. Caller MUST present the original
     ///         payload bytes; we re-hash and compare to the stored payloadHash.
-    ///         Permissionless — anyone (typically the AXI executor cron) can call.
+    ///         Gated to EXECUTOR_ROLE (the AXI executor cron wallet).
     function execute(bytes32 commandId, bytes calldata payload)
         external
         override
